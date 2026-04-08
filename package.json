@@ -1,0 +1,32 @@
+{
+  "name": "tiket-backend",
+  "module": "src/index.ts",
+  "type": "module",
+  "private": true,
+  "author": {
+    "name": "Mahadevan Reji"
+  },
+  "scripts": {
+    "db:generate": "drizzle-kit generate --config ./drizzle.config.ts",
+    "db:push": "bun --bun drizzle-kit push --config ./drizzle.config.ts",
+    "db:migrate": "bun --bun drizzle-kit migrate --config ./drizzle.config.ts",
+    "db:studio": "bun --bun drizzle-kit studio --config ./drizzle.config.ts",
+    "start": "bun run src/index.ts",
+    "dev": "bun run --watch src/index.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/pg": "^8.20.0",
+    "drizzle-kit": "^0.31.10",
+    "tsx": "^4.21.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@fastify/jwt": "^10.0.0",
+    "drizzle-orm": "^0.45.2",
+    "fastify": "^5.8.4",
+    "pg": "^8.20.0"
+  }
+}
