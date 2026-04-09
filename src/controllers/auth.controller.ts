@@ -121,7 +121,7 @@ export const getMe = async (request: FastifyRequest, reply: FastifyReply) => {
   try {
     await request.jwtVerify();
 
-    const decoded = request.user as { id: string; email: string };
+    const decoded = request.user as { id: string; email: string; type: string };
 
     const existingUsers = await db
       .select({
@@ -129,6 +129,7 @@ export const getMe = async (request: FastifyRequest, reply: FastifyReply) => {
         name: users.name,
         email: users.email,
         createdAt: users.createdAt,
+        type: users.type,
       })
       .from(users)
       .where(eq(users.id, decoded.id));

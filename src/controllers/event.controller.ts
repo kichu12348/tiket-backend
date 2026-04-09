@@ -26,7 +26,12 @@ export const createEvent = async (
 ) => {
   try {
     await request.jwtVerify();
-    const user = request.user as { id: string };
+    const user = request.user as { id: string; type: string };
+    
+    if (user.type !== "organization") {
+      return reply.status(403).send({ error: "Only organizations can create events." });
+    }
+
     const body = request.body;
 
     const slug = generateSlug(body.title);
