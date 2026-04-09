@@ -5,6 +5,8 @@ export const userResponseSchema = {
     name: { type: "string" },
     email: { type: "string" },
     type: { type: "string" },
+    description: { type: ["string", "null"] },
+    isVerified: { type: "boolean" },
     createdAt: { type: "string", format: "date-time" },
   },
 };

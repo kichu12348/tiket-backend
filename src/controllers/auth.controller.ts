@@ -40,6 +40,8 @@ export const signup = async (
         email: users.email,
         createdAt: users.createdAt,
         type: users.type,
+        description: users.description,
+        isVerified: users.isVerified,
       });
 
     const insertedUser = newUser[0];
@@ -108,6 +110,8 @@ export const login = async (
         name: user.name,
         email: user.email,
         type: user.type,
+        description: user.description,
+        isVerified: user.isVerified,
       },
       token,
     });
@@ -130,6 +134,8 @@ export const getMe = async (request: FastifyRequest, reply: FastifyReply) => {
         email: users.email,
         createdAt: users.createdAt,
         type: users.type,
+        description: users.description,
+        isVerified: users.isVerified,
       })
       .from(users)
       .where(eq(users.id, decoded.id));
