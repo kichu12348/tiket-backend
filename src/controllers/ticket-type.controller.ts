@@ -1,7 +1,8 @@
 import type { FastifyRequest, FastifyReply } from "fastify";
 import db from "@db";
-import { events, ticketTypes } from "@db/schema";
+import { ticketTypes } from "@db/schema";
 import { eq, and } from "drizzle-orm";
+import { verifyEventOwner } from "@utils";
 
 interface CreateTicketTypeBody {
   name: string;
@@ -17,20 +18,6 @@ interface CreateTicketTypeBody {
 }
 
 interface UpdateTicketTypeBody extends Partial<CreateTicketTypeBody> {}
-
-async function verifyEventOwner(
-  eventId: string,
-  userId: string,
-): Promise<boolean> {
-  const eventList = await db
-    .select({ creatorId: events.creatorId })
-    .from(events)
-    .where(eq(events.id, eventId));
-
-  const checkEvent = eventList[0];
-  if (!checkEvent) return false;
-  return checkEvent.creatorId === userId;
-}
 
 export const createTicketType = async (
   request: FastifyRequest<{

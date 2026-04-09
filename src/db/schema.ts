@@ -16,6 +16,8 @@ import { relations } from "drizzle-orm";
 // 🎯 ENUMS
 // ==========================================
 
+export const userTypeEnum = pgEnum("user_type", ["individual", "organization"]);
+
 export const eventStatusEnum = pgEnum("event_status", [
   "draft",
   "published",
@@ -79,6 +81,9 @@ export const users = pgTable("users", {
   email: varchar("email", { length: 255 }).unique().notNull(),
   passwordHash: text("password_hash"),
   googleId: varchar("google_id", { length: 255 }).unique(),
+  type: userTypeEnum("type").notNull().default("individual"),
+  description: text("description"),
+  isVerified: boolean("is_verified").default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -99,7 +104,7 @@ export const events = pgTable("events", {
   endDate: timestamp("end_date").notNull(),
   closingDate: timestamp("closing_date"), // Ticket sales cutoff
   status: eventStatusEnum("status").notNull().default("draft"),
-  creatorId: uuid("creator_id")
+  organizationId: uuid("organization_id")
     .references(() => users.id)
     .notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -337,14 +342,14 @@ export const workflows = pgTable("workflows", {
 // ==========================================
 
 export const usersRelations = relations(users, ({ many }) => ({
-  createdEvents: many(events),
+  events: many(events),
   memberships: many(eventTeamMembers),
   orders: many(orders),
   tickets: many(tickets),
 }));
 
 export const eventsRelations = relations(events, ({ one, many }) => ({
-  creator: one(users, { fields: [events.creatorId], references: [users.id] }),
+  organization: one(users, { fields: [events.organizationId], references: [users.id] }),
   roles: many(eventRoles),
   teamMembers: many(eventTeamMembers),
   ticketTypes: many(ticketTypes),

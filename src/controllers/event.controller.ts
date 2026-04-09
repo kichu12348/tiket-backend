@@ -55,7 +55,7 @@ export const createEvent = async (
         endDate: new Date(body.endDate),
         closingDate: body.closingDate ? new Date(body.closingDate) : null,
         status: body.status || "draft",
-        creatorId: user.id,
+        organizationId: user.id,
         slug: slug,
       })
       .returning();
@@ -106,7 +106,7 @@ export const getMyEvents = async (
     const myEventsList = await db
       .select()
       .from(events)
-      .where(eq(events.creatorId, user.id));
+      .where(eq(events.organizationId, user.id));
 
     return reply.send(myEventsList);
   } catch (error) {
@@ -142,7 +142,7 @@ export const getEventById = async (
       try {
         await request.jwtVerify();
         const user = request.user as { id: string };
-        if (event.creatorId !== user.id) {
+        if (event.organizationId !== user.id) {
           return reply.status(404).send({ error: "Event not found" });
         }
       } catch (err) {
@@ -176,7 +176,7 @@ export const getEventBySlug = async (
       try {
         await request.jwtVerify();
         const user = request.user as { id: string };
-        if (event.creatorId !== user.id) {
+        if (event.organizationId !== user.id) {
           return reply.status(404).send({ error: "Event not found" });
         }
       } catch (err) {
@@ -202,7 +202,7 @@ export const updateEvent = async (
     const body = request.body;
 
     const eventList = await db
-      .select({ creatorId: events.creatorId })
+      .select({ organizationId: events.organizationId })
       .from(events)
       .where(eq(events.id, eventId));
 
@@ -211,7 +211,7 @@ export const updateEvent = async (
       return reply.status(404).send({ error: "Event not found" });
     }
 
-    if (eventToUpdate.creatorId !== user.id) {
+    if (eventToUpdate.organizationId !== user.id) {
       return reply
         .status(401)
         .send({ error: "Unauthorized to modify this event" });
@@ -258,7 +258,7 @@ export const deleteEvent = async (
     const eventId = request.params.id;
 
     const eventList = await db
-      .select({ creatorId: events.creatorId })
+      .select({ organizationId: events.organizationId })
       .from(events)
       .where(eq(events.id, eventId));
 
@@ -267,7 +267,7 @@ export const deleteEvent = async (
       return reply.status(404).send({ error: "Event not found" });
     }
 
-    if (eventToDelete.creatorId !== user.id) {
+    if (eventToDelete.organizationId !== user.id) {
       return reply
         .status(401)
         .send({ error: "Unauthorized to delete this event" });

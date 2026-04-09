@@ -4,6 +4,7 @@ export const userResponseSchema = {
     id: { type: "string" },
     name: { type: "string" },
     email: { type: "string" },
+    type: { type: "string" },
     createdAt: { type: "string", format: "date-time" },
   },
 };

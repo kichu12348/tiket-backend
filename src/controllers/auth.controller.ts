@@ -39,6 +39,7 @@ export const signup = async (
         name: users.name,
         email: users.email,
         createdAt: users.createdAt,
+        type: users.type,
       });
 
     const insertedUser = newUser[0];
@@ -47,8 +48,12 @@ export const signup = async (
     }
 
     const token = await reply.jwtSign(
-      { id: insertedUser.id, email: insertedUser.email },
-      { expiresIn: "7d" },
+      {
+        id: insertedUser.id,
+        email: insertedUser.email,
+        type: insertedUser.type,
+      },
+      { expiresIn: "30d" },
     );
 
     return reply.status(201).send({
@@ -92,8 +97,8 @@ export const login = async (
     }
 
     const token = await reply.jwtSign(
-      { id: user.id, email: user.email },
-      { expiresIn: "7d" },
+      { id: user.id, email: user.email, type: user.type },
+      { expiresIn: "30d" },
     );
 
     return reply.send({
@@ -102,6 +107,7 @@ export const login = async (
         id: user.id,
         name: user.name,
         email: user.email,
+        type: user.type,
       },
       token,
     });

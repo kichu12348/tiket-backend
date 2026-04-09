@@ -50,7 +50,7 @@ export const scanTicket = async (
       });
     }
 
-    let hasAccess = eventObj.creatorId === user.id;
+    let hasAccess = eventObj.organizationId === user.id;
 
     if (!hasAccess) {
       const teamList = await db

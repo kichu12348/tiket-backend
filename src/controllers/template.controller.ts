@@ -1,7 +1,8 @@
 import type { FastifyRequest, FastifyReply } from "fastify";
 import db from "@db";
-import { documentTemplates, events } from "@db/schema";
+import { documentTemplates } from "@db/schema";
 import { eq } from "drizzle-orm";
+import { verifyEventOwner, verifyOwnerByTemplateId } from "@utils";
 
 interface CreateTemplateBody {
   name: string;
@@ -16,42 +17,12 @@ interface UpdateTemplateBody {
   elementsJson?: any;
 }
 
-// Map relational depth verifying bounding security natively
-async function verifyOwnerByTemplateId(templateId: string, userId: string): Promise<boolean> {
-  const templateList = await db
-    .select({ eventId: documentTemplates.eventId })
-    .from(documentTemplates)
-    .where(eq(documentTemplates.id, templateId));
-    
-  if (templateList.length === 0) return false;
-
-  const templateRef = templateList[0];
-  if (!templateRef) return false;
-
-  const eventList = await db
-    .select({ creatorId: events.creatorId })
-    .from(events)
-    .where(eq(events.id, templateRef.eventId));
-    
-  const eventRef = eventList[0];
-  if (!eventRef) return false;
-  return eventRef.creatorId === userId;
-}
-
-async function verifyEventOwner(eventId: string, userId: string): Promise<boolean> {
-  const eventList = await db
-    .select({ creatorId: events.creatorId })
-    .from(events)
-    .where(eq(events.id, eventId));
-
-  const checkEvent = eventList[0];
-  if (!checkEvent) return false;
-  return checkEvent.creatorId === userId;
-}
-
 export const createTemplate = async (
-  request: FastifyRequest<{ Params: { eventId: string }; Body: CreateTemplateBody }>,
-  reply: FastifyReply
+  request: FastifyRequest<{
+    Params: { eventId: string };
+    Body: CreateTemplateBody;
+  }>,
+  reply: FastifyReply,
 ) => {
   try {
     await request.jwtVerify();
@@ -61,7 +32,10 @@ export const createTemplate = async (
 
     const isOwner = await verifyEventOwner(eventId, user.id);
     if (!isOwner) {
-      return reply.status(401).send({ error: "Only the event creator can configure Document visual boundaries." });
+      return reply.status(401).send({
+        error:
+          "Only the event creator can configure Document visual boundaries.",
+      });
     }
 
     const newTemplateList = await db
@@ -87,7 +61,7 @@ export const createTemplate = async (
 
 export const getTemplates = async (
   request: FastifyRequest<{ Params: { eventId: string } }>,
-  reply: FastifyReply
+  reply: FastifyReply,
 ) => {
   try {
     const { eventId } = request.params;
@@ -105,8 +79,11 @@ export const getTemplates = async (
 };
 
 export const updateTemplate = async (
-  request: FastifyRequest<{ Params: { templateId: string }; Body: UpdateTemplateBody }>,
-  reply: FastifyReply
+  request: FastifyRequest<{
+    Params: { templateId: string };
+    Body: UpdateTemplateBody;
+  }>,
+  reply: FastifyReply,
 ) => {
   try {
     await request.jwtVerify();
@@ -116,13 +93,17 @@ export const updateTemplate = async (
 
     const isOwner = await verifyOwnerByTemplateId(templateId, user.id);
     if (!isOwner) {
-      return reply.status(401).send({ error: "Unauthorized. Template boundaries natively restricted." });
+      return reply.status(401).send({
+        error: "Unauthorized. Template boundaries natively restricted.",
+      });
     }
 
     const payload: any = { updatedAt: new Date() };
     if (body.name !== undefined) payload.name = body.name;
-    if (body.backgroundImageUrl !== undefined) payload.backgroundImageUrl = body.backgroundImageUrl;
-    if (body.elementsJson !== undefined) payload.elementsJson = body.elementsJson;
+    if (body.backgroundImageUrl !== undefined)
+      payload.backgroundImageUrl = body.backgroundImageUrl;
+    if (body.elementsJson !== undefined)
+      payload.elementsJson = body.elementsJson;
 
     const updatedTemplateList = await db
       .update(documentTemplates)
@@ -142,7 +123,7 @@ export const updateTemplate = async (
 
 export const deleteTemplate = async (
   request: FastifyRequest<{ Params: { templateId: string } }>,
-  reply: FastifyReply
+  reply: FastifyReply,
 ) => {
   try {
     await request.jwtVerify();
@@ -160,10 +141,12 @@ export const deleteTemplate = async (
       .returning();
 
     if (deletedTemplateList.length === 0) {
-        return reply.status(404).send({ error: "Document Template missing." });
+      return reply.status(404).send({ error: "Document Template missing." });
     }
 
-    return reply.send({ message: "Document Canvas logically destroyed from database." });
+    return reply.send({
+      message: "Document Canvas logically destroyed from database.",
+    });
   } catch (error) {
     if ((error as Error).message.includes("jwt")) {
       return reply.status(401).send({ error: "Unauthorized access mapping." });

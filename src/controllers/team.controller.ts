@@ -1,7 +1,8 @@
 import type { FastifyRequest, FastifyReply } from "fastify";
 import db from "@db";
-import { events, eventRoles, eventTeamMembers, users } from "@db/schema";
+import { eventRoles, eventTeamMembers, users } from "@db/schema";
 import { eq, and } from "drizzle-orm";
+import { verifyEventOwner } from "@utils";
 
 interface CreateRoleBody {
   name: string;
@@ -13,21 +14,12 @@ interface AddMemberBody {
   roleId: string;
 }
 
-// Utility to strictly verify if the requesting user is the creator of the event
-async function verifyEventOwner(eventId: string, userId: string): Promise<boolean> {
-  const eventList = await db
-    .select({ creatorId: events.creatorId })
-    .from(events)
-    .where(eq(events.id, eventId));
-
-  const eventData = eventList[0];
-  if (!eventData) return false;
-  return eventData.creatorId === userId;
-}
-
 export const createRole = async (
-  request: FastifyRequest<{ Params: { eventId: string }; Body: CreateRoleBody }>,
-  reply: FastifyReply
+  request: FastifyRequest<{
+    Params: { eventId: string };
+    Body: CreateRoleBody;
+  }>,
+  reply: FastifyReply,
 ) => {
   try {
     await request.jwtVerify();
@@ -36,7 +28,9 @@ export const createRole = async (
 
     const isOwner = await verifyEventOwner(eventId, user.id);
     if (!isOwner) {
-      return reply.status(401).send({ error: "Only the event creator can manage roles." });
+      return reply
+        .status(401)
+        .send({ error: "Only the event creator can manage roles." });
     }
 
     const { name, permissions } = request.body;
@@ -67,7 +61,7 @@ export const createRole = async (
 
 export const getRoles = async (
   request: FastifyRequest<{ Params: { eventId: string } }>,
-  reply: FastifyReply
+  reply: FastifyReply,
 ) => {
   try {
     await request.jwtVerify();
@@ -97,7 +91,7 @@ export const getRoles = async (
 
 export const addTeamMember = async (
   request: FastifyRequest<{ Params: { eventId: string }; Body: AddMemberBody }>,
-  reply: FastifyReply
+  reply: FastifyReply,
 ) => {
   try {
     await request.jwtVerify();
@@ -106,31 +100,48 @@ export const addTeamMember = async (
 
     const isOwner = await verifyEventOwner(eventId, user.id);
     if (!isOwner) {
-      return reply.status(401).send({ error: "Only the event creator can add members." });
+      return reply
+        .status(401)
+        .send({ error: "Only the event creator can add members." });
     }
 
     const { userId, roleId } = request.body;
 
     // Check if target user exists mapping perfectly
-    const userExists = await db.select().from(users).where(eq(users.id, userId));
+    const userExists = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, userId));
     if (userExists.length === 0) {
       return reply.status(404).send({ error: "Target user not found." });
     }
 
     // Check if designated role successfully maps back to this specific event
-    const roleExists = await db.select().from(eventRoles).where(and(eq(eventRoles.id, roleId), eq(eventRoles.eventId, eventId)));
+    const roleExists = await db
+      .select()
+      .from(eventRoles)
+      .where(and(eq(eventRoles.id, roleId), eq(eventRoles.eventId, eventId)));
     if (roleExists.length === 0) {
-      return reply.status(404).send({ error: "Role not found for this event." });
+      return reply
+        .status(404)
+        .send({ error: "Role not found for this event." });
     }
 
-    // Ensure member is not double-counted 
+    // Ensure member is not double-counted
     const memberExists = await db
       .select()
       .from(eventTeamMembers)
-      .where(and(eq(eventTeamMembers.eventId, eventId), eq(eventTeamMembers.userId, userId)));
+      .where(
+        and(
+          eq(eventTeamMembers.eventId, eventId),
+          eq(eventTeamMembers.userId, userId),
+        ),
+      );
 
     if (memberExists.length > 0) {
-      return reply.status(400).send({ error: "User is already a team member." });
+      return reply
+        .status(400)
+        .send({ error: "User is already a team member." });
     }
 
     const newMemberList = await db
@@ -159,7 +170,7 @@ export const addTeamMember = async (
 
 export const getTeamMembers = async (
   request: FastifyRequest<{ Params: { eventId: string } }>,
-  reply: FastifyReply
+  reply: FastifyReply,
 ) => {
   try {
     await request.jwtVerify();
@@ -187,7 +198,7 @@ export const getTeamMembers = async (
         role: {
           id: eventRoles.id,
           name: eventRoles.name,
-        }
+        },
       })
       .from(eventTeamMembers)
       .innerJoin(users, eq(eventTeamMembers.userId, users.id))

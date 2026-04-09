@@ -5,3 +5,5 @@ export const generateSlug = (title: string): string => {
     .replace(/^-+|-+$/g, "")
     .trim();
 };
+
+export * from "./verifyOwner";

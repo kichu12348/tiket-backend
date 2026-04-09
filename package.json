@@ -11,6 +11,7 @@
     "db:push": "bun --bun drizzle-kit push --config ./drizzle.config.ts",
     "db:migrate": "bun --bun drizzle-kit migrate --config ./drizzle.config.ts",
     "db:studio": "bun --bun drizzle-kit studio --config ./drizzle.config.ts",
+    "db:init": "bun db:generate && bun db:push",
     "start": "bun run src/index.ts",
     "dev": "bun run --watch src/index.ts"
   },

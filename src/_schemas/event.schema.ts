@@ -14,7 +14,7 @@ const eventResponseObj = {
       type: "string",
       enum: ["draft", "published", "completed", "cancelled"],
     },
-    creatorId: { type: "string" },
+    organizationId: { type: "string" },
     createdAt: { type: "string", format: "date-time" },
     updatedAt: { type: "string", format: "date-time" },
   },
