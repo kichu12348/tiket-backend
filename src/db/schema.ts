@@ -84,6 +84,7 @@ export const users = pgTable("users", {
   type: userTypeEnum("type").notNull().default("individual"),
   description: text("description"),
   isVerified: boolean("is_verified").default(false),
+  slug: varchar("slug", { length: 255 }).unique().notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -349,7 +350,10 @@ export const usersRelations = relations(users, ({ many }) => ({
 }));
 
 export const eventsRelations = relations(events, ({ one, many }) => ({
-  organization: one(users, { fields: [events.organizationId], references: [users.id] }),
+  organization: one(users, {
+    fields: [events.organizationId],
+    references: [users.id],
+  }),
   roles: many(eventRoles),
   teamMembers: many(eventTeamMembers),
   ticketTypes: many(ticketTypes),

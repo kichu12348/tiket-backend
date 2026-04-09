@@ -33,6 +33,7 @@ export const signup = async (
         name,
         email,
         passwordHash,
+        slug: "",
       })
       .returning({
         id: users.id,
