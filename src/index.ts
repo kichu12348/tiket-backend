@@ -1,5 +1,6 @@
 import Fastify from "fastify";
 import fastifyJwt from "@fastify/jwt";
+import cors from "@fastify/cors";
 import authRoutes from "@routes/auth";
 import eventRoutes from "@routes/event";
 import teamRoutes from "@routes/team";
@@ -14,6 +15,10 @@ const __dev__ = process.env.DEBUG! === "true";
 
 const fastify = Fastify({
   logger: __dev__,
+});
+
+fastify.register(cors, {
+  origin: true,
 });
 
 fastify.register(fastifyJwt, {
