@@ -13,7 +13,8 @@
     "db:studio": "bun --bun drizzle-kit studio --config ./drizzle.config.ts",
     "db:init": "bun db:generate && bun db:push",
     "start": "bun run src/index.ts",
-    "dev": "bun run --watch src/index.ts"
+    "dev": "bun run --watch src/index.ts",
+    "build": "bun run build.ts"
   },
   "devDependencies": {
     "@types/bun": "latest",

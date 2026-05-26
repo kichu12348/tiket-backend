@@ -14,11 +14,14 @@ import {
   getEventByIdSchema,
   deleteEventSchema,
 } from "@schemas/event";
+import { cdnGenerateUrlSchema } from "@schemas/cdn";
+import { getSignedUrl } from "@controllers/cdn";
 
 export default async function eventRoutes(fastify: FastifyInstance) {
   fastify.post("/", createEventSchema, createEvent);
   fastify.get("/", getEventsSchema, getPublicEvents);
   fastify.get("/me", getEventsSchema, getMyEvents);
+  fastify.post("/upload/signed-url", cdnGenerateUrlSchema, getSignedUrl);
   fastify.get("/:id", getEventByIdSchema, getEventById);
   fastify.patch("/:id", updateEventSchema, updateEvent);
   fastify.delete("/:id", deleteEventSchema, deleteEvent);

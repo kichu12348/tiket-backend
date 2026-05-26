@@ -24,7 +24,7 @@ export const eventStatusEnum = pgEnum("event_status", [
   "completed",
   "cancelled",
 ]);
-export const locationTypeEnum = pgEnum("location_type", ["online", "offline"]);
+export const locationTypeEnum = pgEnum("location_type", ["online", "offline", "hybrid"]);
 export const paymentStatusEnum = pgEnum("payment_status", [
   "pending",
   "success",
@@ -84,6 +84,8 @@ export const users = pgTable("users", {
   type: userTypeEnum("type").notNull().default("individual"),
   description: text("description"),
   isVerified: boolean("is_verified").default(false),
+  otpHash: text("otp_hash"),
+  otpExpiresAt: timestamp("otp_expires_at"),
   slug: varchar("slug", { length: 255 }).unique().notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -99,6 +101,7 @@ export const events = pgTable("events", {
   slug: varchar("slug", { length: 255 }).unique().notNull(),
   description: text("description"),
   coverImage: text("cover_image"),
+  color: varchar("color", { length: 7 }).default("#000000"),
   locationType: locationTypeEnum("location_type").notNull().default("offline"),
   locationDetails: text("location_details"), // Maps link, address, or meeting URL
   startDate: timestamp("start_date").notNull(),

@@ -18,34 +18,7 @@ export const errorResponseSchema = {
   },
 };
 
-export const signUpSchema = {
-  schema: {
-    body: {
-      type: "object",
-      required: ["name", "email", "password"],
-      properties: {
-        name: { type: "string", minLength: 2 },
-        email: { type: "string", format: "email" },
-        password: { type: "string", minLength: 6 },
-      },
-    },
-    response: {
-      201: {
-        type: "object",
-        properties: {
-          message: { type: "string" },
-          token: { type: "string" },
-          user: userResponseSchema,
-        },
-      },
-      400: errorResponseSchema,
-      409: errorResponseSchema,
-      500: errorResponseSchema,
-    },
-  },
-};
-
-export const loginSchema = {
+export const passwordAuthSchema = {
   schema: {
     body: {
       type: "object",
@@ -53,6 +26,7 @@ export const loginSchema = {
       properties: {
         email: { type: "string", format: "email" },
         password: { type: "string", minLength: 6 },
+        name: { type: "string", minLength: 2 },
       },
     },
     response: {
@@ -64,8 +38,69 @@ export const loginSchema = {
           user: userResponseSchema,
         },
       },
-      400: errorResponseSchema,
       401: errorResponseSchema,
+      404: {
+        type: "object",
+        properties: {
+          error: { type: "string" },
+          needsName: { type: "boolean" },
+        },
+      },
+      500: errorResponseSchema,
+    },
+  },
+};
+
+export const sendOtpSchema = {
+  schema: {
+    body: {
+      type: "object",
+      required: ["email"],
+      properties: {
+        email: { type: "string", format: "email" },
+        name: { type: "string", minLength: 2 },
+      },
+    },
+    response: {
+      200: {
+        type: "object",
+        properties: {
+          message: { type: "string" },
+        },
+      },
+      404: {
+        type: "object",
+        properties: {
+          error: { type: "string" },
+          needsName: { type: "boolean" },
+        },
+      },
+      500: errorResponseSchema,
+    },
+  },
+};
+
+export const verifyOtpSchema = {
+  schema: {
+    body: {
+      type: "object",
+      required: ["email", "otp"],
+      properties: {
+        email: { type: "string", format: "email" },
+        otp: { type: "string", minLength: 6, maxLength: 6 },
+      },
+    },
+    response: {
+      200: {
+        type: "object",
+        properties: {
+          message: { type: "string" },
+          token: { type: "string" },
+          user: userResponseSchema,
+        },
+      },
+      401: errorResponseSchema,
+      404: errorResponseSchema,
       500: errorResponseSchema,
     },
   },
