@@ -8,11 +8,16 @@ interface CreateEventBody {
   title: string;
   description?: string;
   coverImage?: string;
-  locationType?: "online" | "offline";
+  locationType?: "online" | "offline" | "hybrid";
   locationDetails?: string;
   startDate: string;
   endDate: string;
-  closingDate?: string;
+  timezone: string;
+  registrationStart?: string;
+  registrationEnd?: string;
+  fontFamily?: string;
+  requireApproval?: boolean;
+  capacity?: number | null;
   status?: "draft" | "published";
 }
 
@@ -27,10 +32,12 @@ export const createEvent = async (
   try {
     await request.jwtVerify();
     const user = request.user as { id: string; type: string };
-    
-    if (user.type !== "organization") {
-      return reply.status(403).send({ error: "Only organizations can create events." });
-    }
+
+    // if (user.type !== "organization") {
+    //   return reply
+    //     .status(403)
+    //     .send({ error: "Only organizations can create events." });
+    // }
 
     const body = request.body;
 
@@ -58,7 +65,16 @@ export const createEvent = async (
         locationDetails: body.locationDetails,
         startDate: new Date(body.startDate),
         endDate: new Date(body.endDate),
-        closingDate: body.closingDate ? new Date(body.closingDate) : null,
+        timezone: body.timezone || "UTC",
+        registrationStart: body.registrationStart
+          ? new Date(body.registrationStart)
+          : null,
+        registrationEnd: body.registrationEnd
+          ? new Date(body.registrationEnd)
+          : null,
+        fontFamily: body.fontFamily || "'Inter', sans-serif",
+        requireApproval: body.requireApproval || false,
+        capacity: body.capacity || null,
         status: body.status || "draft",
         organizationId: user.id,
         slug: slug,
@@ -79,6 +95,7 @@ export const createEvent = async (
       return reply.status(401).send({ error: "Unauthorized" });
     }
     request.log.error(error);
+    console.log(error);
     return reply.status(500).send({ error: "Internal Server Error" });
   }
 };
@@ -225,7 +242,14 @@ export const updateEvent = async (
     const payload: any = { ...body, updatedAt: new Date() };
     if (body.startDate) payload.startDate = new Date(body.startDate);
     if (body.endDate) payload.endDate = new Date(body.endDate);
-    if (body.closingDate) payload.closingDate = new Date(body.closingDate);
+    if (body.timezone) payload.timezone = body.timezone;
+    if (body.registrationStart)
+      payload.registrationStart = new Date(body.registrationStart);
+    if (body.registrationEnd)
+      payload.registrationEnd = new Date(body.registrationEnd);
+    if (body.requireApproval !== undefined)
+      payload.requireApproval = body.requireApproval;
+    if (body.capacity !== undefined) payload.capacity = body.capacity;
 
     const updatedEventList = await db
       .update(events)

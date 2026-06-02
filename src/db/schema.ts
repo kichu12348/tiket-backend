@@ -24,7 +24,11 @@ export const eventStatusEnum = pgEnum("event_status", [
   "completed",
   "cancelled",
 ]);
-export const locationTypeEnum = pgEnum("location_type", ["online", "offline", "hybrid"]);
+export const locationTypeEnum = pgEnum("location_type", [
+  "online",
+  "offline",
+  "hybrid",
+]);
 export const paymentStatusEnum = pgEnum("payment_status", [
   "pending",
   "success",
@@ -106,7 +110,14 @@ export const events = pgTable("events", {
   locationDetails: text("location_details"), // Maps link, address, or meeting URL
   startDate: timestamp("start_date").notNull(),
   endDate: timestamp("end_date").notNull(),
-  closingDate: timestamp("closing_date"), // Ticket sales cutoff
+  timezone: varchar("timezone", { length: 50 }).notNull().default("UTC"),
+  registrationStart: timestamp("registration_start"),
+  registrationEnd: timestamp("registration_end"),
+  fontFamily: varchar("font_family", { length: 100 }).default(
+    "'Inter', sans-serif",
+  ),
+  requireApproval: boolean("require_approval").notNull().default(false),
+  capacity: integer("capacity"), // null means unlimited
   status: eventStatusEnum("status").notNull().default("draft"),
   organizationId: uuid("organization_id")
     .references(() => users.id)
