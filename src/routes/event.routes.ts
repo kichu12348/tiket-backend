@@ -5,11 +5,13 @@ import {
   getMyEvents,
   getEventById,
   updateEvent,
+  updateEventSlug,
   deleteEvent,
 } from "@controllers/event";
 import {
   createEventSchema,
   updateEventSchema,
+  updateEventSlugSchema,
   getEventsSchema,
   getEventByIdSchema,
   deleteEventSchema,
@@ -24,5 +26,6 @@ export default async function eventRoutes(fastify: FastifyInstance) {
   fastify.post("/upload/signed-url", cdnGenerateUrlSchema, getSignedUrl);
   fastify.get("/:id", getEventByIdSchema, getEventById);
   fastify.patch("/:id", updateEventSchema, updateEvent);
+  fastify.patch("/:id/slug", updateEventSlugSchema, updateEventSlug);
   fastify.delete("/:id", deleteEventSchema, deleteEvent);
 }

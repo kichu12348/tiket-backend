@@ -20,6 +20,7 @@ const eventResponseObj = {
       type: "string",
       enum: ["draft", "published", "completed", "cancelled"],
     },
+    slug: { type: "string" },
     organizationId: { type: "string" },
     createdAt: { type: "string", format: "date-time" },
     updatedAt: { type: "string", format: "date-time" },
@@ -93,6 +94,28 @@ export const updateEventSchema = {
         },
       },
       minProperties: 1,
+    },
+    response: {
+      200: eventResponseObj,
+      400: errorResponseSchema,
+      401: errorResponseSchema,
+      404: errorResponseSchema,
+      500: errorResponseSchema,
+    },
+  },
+};
+
+export const updateEventSlugSchema = {
+  schema: {
+    params: {
+      type: "object",
+      required: ["id"],
+      properties: { id: { type: "string" } },
+    },
+    body: {
+      type: "object",
+      required: ["slug"],
+      properties: { slug: { type: "string" } },
     },
     response: {
       200: eventResponseObj,

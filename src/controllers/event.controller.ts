@@ -2,12 +2,13 @@ import type { FastifyRequest, FastifyReply } from "fastify";
 import db from "@db";
 import { events } from "@db/schema";
 import { generateSlug } from "@utils";
-import { eq } from "drizzle-orm";
+import { eq, and, ne } from "drizzle-orm";
 
 interface CreateEventBody {
   title: string;
   description?: string;
   coverImage?: string;
+  color?: string;
   locationType?: "online" | "offline" | "hybrid";
   locationDetails?: string;
   startDate: string;
@@ -19,6 +20,7 @@ interface CreateEventBody {
   requireApproval?: boolean;
   capacity?: number | null;
   status?: "draft" | "published";
+  slug?: string;
 }
 
 interface UpdateEventBody extends Partial<Omit<CreateEventBody, "status">> {
@@ -61,6 +63,7 @@ export const createEvent = async (
         title: body.title,
         description: body.description,
         coverImage: body.coverImage,
+        color: body.color,
         locationType: body.locationType || "offline",
         locationDetails: body.locationDetails,
         startDate: new Date(body.startDate),
@@ -250,6 +253,7 @@ export const updateEvent = async (
     if (body.requireApproval !== undefined)
       payload.requireApproval = body.requireApproval;
     if (body.capacity !== undefined) payload.capacity = body.capacity;
+    if (body.status !== undefined) payload.status = body.status;
 
     const updatedEventList = await db
       .update(events)
@@ -305,6 +309,62 @@ export const deleteEvent = async (
     await db.delete(events).where(eq(events.id, eventId));
 
     return reply.send({ message: "Event deleted successfully" });
+  } catch (error) {
+    if (
+      (error as Error).message.includes("Authorization") ||
+      (error as Error).message.includes("jwt")
+    ) {
+      return reply.status(401).send({ error: "Unauthorized" });
+    }
+    request.log.error(error);
+    return reply.status(500).send({ error: "Internal Server Error" });
+  }
+};
+
+export const updateEventSlug = async (
+  request: FastifyRequest<{ Params: { id: string }; Body: { slug: string } }>,
+  reply: FastifyReply,
+) => {
+  try {
+    await request.jwtVerify();
+    const user = request.user as { id: string };
+    const eventId = request.params.id;
+    const { slug } = request.body;
+
+    const eventList = await db
+      .select({ organizationId: events.organizationId })
+      .from(events)
+      .where(eq(events.id, eventId));
+
+    const eventToUpdate = eventList[0];
+    if (!eventToUpdate) {
+      return reply.status(404).send({ error: "Event not found" });
+    }
+
+    if (eventToUpdate.organizationId !== user.id) {
+      return reply
+        .status(401)
+        .send({ error: "Unauthorized to modify this event" });
+    }
+
+    const existingSlugList = await db
+      .select({ id: events.id })
+      .from(events)
+      .where(and(eq(events.slug, slug), ne(events.id, eventId)));
+
+    if (existingSlugList.length > 0) {
+      return reply
+        .status(400)
+        .send({ error: "An event with this slug already exists" });
+    }
+
+    const updatedEventList = await db
+      .update(events)
+      .set({ slug, updatedAt: new Date() })
+      .where(eq(events.id, eventId))
+      .returning();
+
+    return reply.send(updatedEventList[0]);
   } catch (error) {
     if (
       (error as Error).message.includes("Authorization") ||

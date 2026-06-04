@@ -18,7 +18,8 @@ const fastify = Fastify({
 });
 
 fastify.register(cors, {
-  origin: true,
+  origin: ["http://localhost:3000"],
+  methods: ["GET", "POST", "PATCH", "PUT", "DELETE"],
 });
 
 fastify.register(fastifyJwt, {
