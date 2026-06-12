@@ -362,9 +362,21 @@ export const updateEventSlug = async (
       .update(events)
       .set({ slug, updatedAt: new Date() })
       .where(eq(events.id, eventId))
-      .returning();
+      .returning({ slug: events.slug, id: events.id });
 
-    return reply.send(updatedEventList[0]);
+    const updatedEvent = updatedEventList[0];
+
+    if (!updatedEvent) {
+      return reply
+        .status(500)
+        .send({ error: "Failed to update event slug, try again" });
+    }
+
+    return reply.send({
+      message: "Slug updated successfully",
+      slug: updatedEvent.slug,
+      id: updatedEvent.id,
+    });
   } catch (error) {
     if (
       (error as Error).message.includes("Authorization") ||

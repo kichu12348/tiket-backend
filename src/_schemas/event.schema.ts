@@ -118,7 +118,14 @@ export const updateEventSlugSchema = {
       properties: { slug: { type: "string" } },
     },
     response: {
-      200: eventResponseObj,
+      200: {
+        type: "object",
+        properties: {
+          message: { type: "string" },
+          slug: { type: "string" },
+          id: { type: "string" },
+        },
+      },
       400: errorResponseSchema,
       401: errorResponseSchema,
       404: errorResponseSchema,
