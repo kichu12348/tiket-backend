@@ -2,15 +2,7 @@ import type { FastifyRequest, FastifyReply } from "fastify";
 
 const CND_URL = process.env.CDN_URL!;
 
-const MIME_TYPES_IMAGES = new Set<string>([
-  "jpeg",
-  "png",
-  "webp",
-  "svg",
-  "ico",
-  "avif",
-  "jpg",
-]);
+const MIME_TYPES_IMAGES = new Set<string>(["jpeg", "png", "webp", "jpg"]);
 
 export async function getSignedUrl(
   request: FastifyRequest<{ Body: { filename: string; contentType: string } }>,

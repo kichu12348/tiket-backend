@@ -43,7 +43,7 @@ export const createEvent = async (
 
     const body = request.body;
 
-    const slug = generateSlug(body.title);
+    const slug = generateSlug(8);
 
     const existingSlugList = await db
       .select({ slug: events.slug })
@@ -54,7 +54,7 @@ export const createEvent = async (
       // if slug already exists return an error
       return reply
         .status(400)
-        .send({ error: "An event with a similar title already exists" });
+        .send({ error: "An event with a similar slug already exists" });
     }
 
     const newEventList = await db
@@ -78,7 +78,7 @@ export const createEvent = async (
         fontFamily: body.fontFamily || "'Inter', sans-serif",
         requireApproval: body.requireApproval || false,
         capacity: body.capacity || null,
-        status: body.status || "draft",
+        status: "draft",
         organizationId: user.id,
         slug: slug,
       })

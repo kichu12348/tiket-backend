@@ -107,7 +107,7 @@ export const events = pgTable("events", {
   coverImage: text("cover_image"),
   color: varchar("color", { length: 7 }).default("#000000"),
   locationType: locationTypeEnum("location_type").notNull().default("offline"),
-  locationDetails: text("location_details"), // Maps link, address, or meeting URL
+  locationDetails: jsonb("location_details"), // Maps link, address, or meeting URL
   startDate: timestamp("start_date").notNull(),
   endDate: timestamp("end_date").notNull(),
   timezone: varchar("timezone", { length: 50 }).notNull().default("UTC"),
