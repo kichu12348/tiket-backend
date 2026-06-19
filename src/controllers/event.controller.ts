@@ -1,6 +1,6 @@
 import type { FastifyRequest, FastifyReply } from "fastify";
 import db from "@db";
-import { events } from "@db/schema";
+import { events, users, eventRoles, eventTeamMembers } from "@db/schema";
 import { generateSlug } from "@utils";
 import { eq, and, ne } from "drizzle-orm";
 
@@ -382,6 +382,76 @@ export const updateEventSlug = async (
       (error as Error).message.includes("Authorization") ||
       (error as Error).message.includes("jwt")
     ) {
+      return reply.status(401).send({ error: "Unauthorized" });
+    }
+    request.log.error(error);
+    return reply.status(500).send({ error: "Internal Server Error" });
+  }
+};
+
+export const getEventHosts = async (
+  request: FastifyRequest<{ Params: { id: string } }>,
+  reply: FastifyReply,
+) => {
+  try {
+    await request.jwtVerify();
+    const eventId = request.params.id;
+
+    const eventList = await db
+      .select({ organizationId: events.organizationId })
+      .from(events)
+      .where(eq(events.id, eventId));
+
+    const eventInfo = eventList[0];
+    if (!eventInfo) {
+      return reply.status(404).send({ error: "Event not found" });
+    }
+
+    const creatorList = await db
+      .select({ id: users.id, name: users.name, email: users.email })
+      .from(users)
+      .where(eq(users.id, eventInfo.organizationId));
+
+    const creator = creatorList[0];
+
+    const teamMembersList = await db
+      .select({
+        id: eventTeamMembers.id,
+        user: { id: users.id, name: users.name, email: users.email },
+        role: { name: eventRoles.name },
+      })
+      .from(eventTeamMembers)
+      .innerJoin(users, eq(eventTeamMembers.userId, users.id))
+      .innerJoin(eventRoles, eq(eventTeamMembers.roleId, eventRoles.id))
+      .where(eq(eventTeamMembers.eventId, eventId))
+      .limit(20);
+
+    const hosts = [];
+    if (creator) {
+      hosts.push({
+        id: creator.id,
+        name: creator.name,
+        email: creator.email,
+        role: "Creator",
+        isCreator: true,
+      });
+    }
+
+    for (const member of teamMembersList) {
+      if (member.user.id !== creator?.id) {
+        hosts.push({
+          id: member.user.id,
+          name: member.user.name,
+          email: member.user.email,
+          role: member.role.name,
+          isCreator: false,
+        });
+      }
+    }
+
+    return reply.send(hosts);
+  } catch (error) {
+    if ((error as Error).message.includes("jwt")) {
       return reply.status(401).send({ error: "Unauthorized" });
     }
     request.log.error(error);

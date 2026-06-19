@@ -204,3 +204,31 @@ export const deleteEventSchema = {
     },
   },
 };
+
+export const getEventHostsSchema = {
+  schema: {
+    params: {
+      type: "object",
+      required: ["id"],
+      properties: { id: { type: "string" } },
+    },
+    response: {
+      200: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+            name: { type: "string" },
+            email: { type: "string" },
+            role: { type: "string" },
+            isCreator: { type: "boolean" },
+          },
+        },
+      },
+      401: errorResponseSchema,
+      404: errorResponseSchema,
+      500: errorResponseSchema,
+    },
+  },
+};

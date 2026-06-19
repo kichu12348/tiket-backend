@@ -4,12 +4,14 @@ import {
   getFields,
   updateField,
   deleteField,
+  deletePage,
 } from "@controllers/form";
 import {
   createFieldSchema,
   getFieldsSchema,
   updateFieldSchema,
   deleteFieldSchema,
+  deletePageSchema,
 } from "@schemas/form";
 
 export default async function formRoutes(fastify: FastifyInstance) {
@@ -17,4 +19,5 @@ export default async function formRoutes(fastify: FastifyInstance) {
   fastify.get("/:eventId", getFieldsSchema, getFields);
   fastify.patch("/:eventId/:fieldId", updateFieldSchema, updateField);
   fastify.delete("/:eventId/:fieldId", deleteFieldSchema, deleteField);
+  fastify.delete("/:eventId/pages/:pageNum", deletePageSchema, deletePage);
 }

@@ -8,6 +8,7 @@ import {
   updateEventSlug,
   deleteEvent,
   getEventBySlug,
+  getEventHosts,
 } from "@controllers/event";
 import {
   createEventSchema,
@@ -17,6 +18,7 @@ import {
   getEventByIdSchema,
   deleteEventSchema,
   getEventBySlugSchema,
+  getEventHostsSchema,
 } from "@schemas/event";
 import { cdnGenerateUrlSchema } from "@schemas/cdn";
 import { getSignedUrl } from "@controllers/cdn";
@@ -31,4 +33,5 @@ export default async function eventRoutes(fastify: FastifyInstance) {
   fastify.patch("/:id", updateEventSchema, updateEvent);
   fastify.patch("/:id/slug", updateEventSlugSchema, updateEventSlug);
   fastify.delete("/:id", deleteEventSchema, deleteEvent);
+  fastify.get("/:id/hosts", getEventHostsSchema, getEventHosts);
 }

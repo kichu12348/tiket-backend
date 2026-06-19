@@ -55,11 +55,21 @@ export const refundStatusEnum = pgEnum("refund_status", [
 ]);
 export const fieldTypeEnum = pgEnum("field_type", [
   "text",
+  "long_text",
   "email",
+  "phone",
   "number",
-  "select",
+  "single_select",
+  "multi_select",
+  "radio",
   "checkbox",
   "date",
+  "datetime",
+  "time",
+  "rating",
+  "file",
+  "url",
+  "select",
 ]);
 export const templateTypeEnum = pgEnum("template_type", [
   "ticket",
@@ -272,6 +282,7 @@ export const formFields = pgTable("form_fields", {
   isRequired: boolean("is_required").notNull().default(true),
   options: jsonb("options"), // Array of choices for select/radio
   sortOrder: integer("sort_order").notNull().default(0),
+  page: integer("page").notNull().default(1),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

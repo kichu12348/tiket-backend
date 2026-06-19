@@ -1,16 +1,17 @@
 import type { FastifyRequest, FastifyReply } from "fastify";
 import db from "@db";
 import { formFields } from "@db/schema";
-import { eq, and, asc } from "drizzle-orm";
+import { eq, and, asc, gt, sql } from "drizzle-orm";
 import { verifyEventOwner } from "@utils";
 
 interface CreateFieldBody {
   name: string;
   label: string;
-  fieldType: "text" | "email" | "number" | "select" | "checkbox" | "date";
+  fieldType: "text" | "long_text" | "email" | "phone" | "number" | "single_select" | "multi_select" | "radio" | "checkbox" | "date" | "datetime" | "time" | "rating" | "file" | "url" | "select";
   isRequired?: boolean;
   options?: string[];
   sortOrder?: number;
+  page?: number;
 }
 
 interface UpdateFieldBody extends Partial<CreateFieldBody> {}
@@ -46,6 +47,7 @@ export const createField = async (
         isRequired: body.isRequired ?? true,
         options: body.options ? body.options : null,
         sortOrder: body.sortOrder ?? 0,
+        page: body.page ?? 1,
       })
       .returning();
 
@@ -112,6 +114,7 @@ export const updateField = async (
     if (body.isRequired !== undefined) payload.isRequired = body.isRequired;
     if (body.options !== undefined) payload.options = body.options;
     if (body.sortOrder !== undefined) payload.sortOrder = body.sortOrder;
+    if (body.page !== undefined) payload.page = body.page;
 
     const updatedFieldList = await db
       .update(formFields)
@@ -158,6 +161,44 @@ export const deleteField = async (
     }
 
     return reply.send({ message: "Form field successfully deleted." });
+  } catch (error) {
+    if ((error as Error).message.includes("jwt")) {
+      return reply.status(401).send({ error: "Unauthorized" });
+    }
+    request.log.error(error);
+    return reply.status(500).send({ error: "Internal Server Error" });
+  }
+};
+
+export const deletePage = async (
+  request: FastifyRequest<{ Params: { eventId: string; pageNum: number } }>,
+  reply: FastifyReply,
+) => {
+  try {
+    await request.jwtVerify();
+    const user = request.user as { id: string };
+    const { eventId, pageNum } = request.params;
+
+    const isOwner = await verifyEventOwner(eventId, user.id);
+    if (!isOwner) {
+      return reply.status(401).send({ error: "Unauthorized" });
+    }
+
+    // Run transaction to ensure atomicity
+    await db.transaction(async (tx) => {
+      // 1. Delete all fields on this page
+      await tx
+        .delete(formFields)
+        .where(and(eq(formFields.eventId, eventId), eq(formFields.page, pageNum)));
+
+      // 2. Shift subsequent pages down by 1
+      await tx
+        .update(formFields)
+        .set({ page: sql`${formFields.page} - 1` })
+        .where(and(eq(formFields.eventId, eventId), gt(formFields.page, pageNum)));
+    });
+
+    return reply.send({ message: `Page ${pageNum} successfully deleted and subsequent pages shifted.` });
   } catch (error) {
     if ((error as Error).message.includes("jwt")) {
       return reply.status(401).send({ error: "Unauthorized" });

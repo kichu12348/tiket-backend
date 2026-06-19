@@ -5,10 +5,11 @@ const formFieldObj = {
     eventId: { type: "string" },
     name: { type: "string" },
     label: { type: "string" },
-    fieldType: { type: "string", enum: ["text", "email", "number", "select", "checkbox", "date"] },
+    fieldType: { type: "string", enum: ["text", "long_text", "email", "phone", "number", "single_select", "multi_select", "radio", "checkbox", "date", "datetime", "time", "rating", "file", "url", "select"] },
     isRequired: { type: "boolean" },
     options: { type: ["array", "null"], items: { type: "string" } },
     sortOrder: { type: "integer" },
+    page: { type: "integer" },
     createdAt: { type: "string", format: "date-time" },
   },
 };
@@ -31,10 +32,11 @@ export const createFieldSchema = {
       properties: {
         name: { type: "string", minLength: 1 },
         label: { type: "string", minLength: 1 },
-        fieldType: { type: "string", enum: ["text", "email", "number", "select", "checkbox", "date"] },
+        fieldType: { type: "string", enum: ["text", "long_text", "email", "phone", "number", "single_select", "multi_select", "radio", "checkbox", "date", "datetime", "time", "rating", "file", "url", "select"] },
         isRequired: { type: "boolean" },
         options: { type: "array", items: { type: "string" } },
         sortOrder: { type: "integer" },
+        page: { type: "integer" },
       },
     },
     response: {
@@ -78,10 +80,11 @@ export const updateFieldSchema = {
       properties: {
         name: { type: "string", minLength: 1 },
         label: { type: "string", minLength: 1 },
-        fieldType: { type: "string", enum: ["text", "email", "number", "select", "checkbox", "date"] },
+        fieldType: { type: "string", enum: ["text", "long_text", "email", "phone", "number", "single_select", "multi_select", "radio", "checkbox", "date", "datetime", "time", "rating", "file", "url", "select"] },
         isRequired: { type: "boolean" },
         options: { type: ["array", "null"], items: { type: "string" } },
         sortOrder: { type: "integer" },
+        page: { type: "integer" },
       },
       minProperties: 1,
     },
@@ -103,6 +106,28 @@ export const deleteFieldSchema = {
       properties: { 
         eventId: { type: "string" },
         fieldId: { type: "string" }
+      },
+    },
+    response: {
+      200: {
+        type: "object",
+        properties: { message: { type: "string" } },
+      },
+      401: errorResponseSchema,
+      404: errorResponseSchema,
+      500: errorResponseSchema,
+    },
+  },
+};
+
+export const deletePageSchema = {
+  schema: {
+    params: {
+      type: "object",
+      required: ["eventId", "pageNum"],
+      properties: { 
+        eventId: { type: "string" },
+        pageNum: { type: "number" }
       },
     },
     response: {
