@@ -5,9 +5,41 @@ const formFieldObj = {
     eventId: { type: "string" },
     name: { type: "string" },
     label: { type: "string" },
-    fieldType: { type: "string", enum: ["text", "long_text", "email", "phone", "number", "single_select", "multi_select", "radio", "checkbox", "date", "datetime", "time", "rating", "file", "url", "select"] },
+    fieldType: {
+      type: "string",
+      enum: [
+        "text",
+        "long_text",
+        "email",
+        "phone",
+        "number",
+        "single_select",
+        "multi_select",
+        "radio",
+        "checkbox",
+        "date",
+        "datetime",
+        "time",
+        "rating",
+        "url",
+        "select",
+      ],
+    },
     isRequired: { type: "boolean" },
-    options: { type: ["array", "null"], items: { type: "string" } },
+    options: {
+      anyOf: [
+        { type: "array", items: { type: "string" } },
+        {
+          type: "object",
+          properties: {
+            choices: { type: "array", items: { type: "string" } },
+            min: { type: ["integer", "null"] },
+            max: { type: ["integer", "null"] },
+          },
+        },
+        { type: "null" },
+      ],
+    },
     sortOrder: { type: "integer" },
     page: { type: "integer" },
     createdAt: { type: "string", format: "date-time" },
@@ -32,9 +64,42 @@ export const createFieldSchema = {
       properties: {
         name: { type: "string", minLength: 1 },
         label: { type: "string", minLength: 1 },
-        fieldType: { type: "string", enum: ["text", "long_text", "email", "phone", "number", "single_select", "multi_select", "radio", "checkbox", "date", "datetime", "time", "rating", "file", "url", "select"] },
+        fieldType: {
+          type: "string",
+          enum: [
+            "text",
+            "long_text",
+            "email",
+            "phone",
+            "number",
+            "single_select",
+            "multi_select",
+            "radio",
+            "checkbox",
+            "date",
+            "datetime",
+            "time",
+            "rating",
+            "file",
+            "url",
+            "select",
+          ],
+        },
         isRequired: { type: "boolean" },
-        options: { type: "array", items: { type: "string" } },
+        options: {
+          anyOf: [
+            { type: "array", items: { type: "string" } },
+            {
+              type: "object",
+              properties: {
+                choices: { type: "array", items: { type: "string" } },
+                min: { type: ["integer", "null"] },
+                max: { type: ["integer", "null"] },
+              },
+            },
+            { type: "null" },
+          ],
+        },
         sortOrder: { type: "integer" },
         page: { type: "integer" },
       },
@@ -70,9 +135,9 @@ export const updateFieldSchema = {
     params: {
       type: "object",
       required: ["eventId", "fieldId"],
-      properties: { 
+      properties: {
         eventId: { type: "string" },
-        fieldId: { type: "string" }
+        fieldId: { type: "string" },
       },
     },
     body: {
@@ -80,9 +145,42 @@ export const updateFieldSchema = {
       properties: {
         name: { type: "string", minLength: 1 },
         label: { type: "string", minLength: 1 },
-        fieldType: { type: "string", enum: ["text", "long_text", "email", "phone", "number", "single_select", "multi_select", "radio", "checkbox", "date", "datetime", "time", "rating", "file", "url", "select"] },
+        fieldType: {
+          type: "string",
+          enum: [
+            "text",
+            "long_text",
+            "email",
+            "phone",
+            "number",
+            "single_select",
+            "multi_select",
+            "radio",
+            "checkbox",
+            "date",
+            "datetime",
+            "time",
+            "rating",
+            "file",
+            "url",
+            "select",
+          ],
+        },
         isRequired: { type: "boolean" },
-        options: { type: ["array", "null"], items: { type: "string" } },
+        options: {
+          anyOf: [
+            { type: "array", items: { type: "string" } },
+            {
+              type: "object",
+              properties: {
+                choices: { type: "array", items: { type: "string" } },
+                min: { type: ["integer", "null"] },
+                max: { type: ["integer", "null"] },
+              },
+            },
+            { type: "null" },
+          ],
+        },
         sortOrder: { type: "integer" },
         page: { type: "integer" },
       },
@@ -103,9 +201,9 @@ export const deleteFieldSchema = {
     params: {
       type: "object",
       required: ["eventId", "fieldId"],
-      properties: { 
+      properties: {
         eventId: { type: "string" },
-        fieldId: { type: "string" }
+        fieldId: { type: "string" },
       },
     },
     response: {
@@ -125,9 +223,9 @@ export const deletePageSchema = {
     params: {
       type: "object",
       required: ["eventId", "pageNum"],
-      properties: { 
+      properties: {
         eventId: { type: "string" },
-        pageNum: { type: "number" }
+        pageNum: { type: "number" },
       },
     },
     response: {
