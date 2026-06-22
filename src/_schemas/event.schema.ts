@@ -1,3 +1,18 @@
+const locationDetailsSchema = {
+  type: "object",
+  properties: {
+    name: { type: ["string", "null"] },
+    address: { type: ["string", "null"] },
+    city: { type: ["string", "null"] },
+    state: { type: ["string", "null"] },
+    country: { type: ["string", "null"] },
+    placeId: { type: ["string", "null"] },
+    lat: { type: ["number", "null"] },
+    lng: { type: ["number", "null"] },
+    link: { type: ["string", "null"] },
+  },
+};
+
 const eventResponseObj = {
   type: "object",
   properties: {
@@ -7,10 +22,7 @@ const eventResponseObj = {
     coverImage: { type: ["string", "null"] },
     color: { type: ["string", "null"] },
     locationType: { type: "string", enum: ["online", "offline", "hybrid"] },
-    locationDetails: {
-      type: ["object", "string", "null"],
-      additionalProperties: true,
-    },
+    locationDetails: locationDetailsSchema,
     startDate: { type: "string", format: "date-time" },
     endDate: { type: "string", format: "date-time" },
     timezone: { type: "string" },
@@ -46,10 +58,7 @@ export const createEventSchema = {
         coverImage: { type: "string" },
         color: { type: "string" },
         locationType: { type: "string", enum: ["online", "offline", "hybrid"] },
-        locationDetails: {
-          type: ["object", "string", "null"],
-          additionalProperties: true,
-        },
+        locationDetails: locationDetailsSchema,
         startDate: { type: "string", format: "date-time" },
         endDate: { type: "string", format: "date-time" },
         timezone: { type: "string" },
@@ -85,10 +94,7 @@ export const updateEventSchema = {
         coverImage: { type: "string" },
         color: { type: "string" },
         locationType: { type: "string", enum: ["online", "offline", "hybrid"] },
-        locationDetails: {
-          type: ["object", "string", "null"],
-          additionalProperties: true,
-        },
+        locationDetails: locationDetailsSchema,
         startDate: { type: "string", format: "date-time" },
         endDate: { type: "string", format: "date-time" },
         timezone: { type: "string" },
