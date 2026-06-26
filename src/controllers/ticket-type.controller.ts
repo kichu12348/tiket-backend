@@ -1,7 +1,7 @@
 import type { FastifyRequest, FastifyReply } from "fastify";
 import db from "@db";
 import { ticketTypes } from "@db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, asc, max } from "drizzle-orm";
 import { verifyEventOwner } from "@utils";
 
 interface CreateTicketTypeBody {
@@ -43,24 +43,36 @@ export const createTicketType = async (
     // Normalize price string mapping perfectly
     const normalizedPrice = body.price ? body.price.toString() : "0.00";
 
-    const newTicketTypeList = await db
-      .insert(ticketTypes)
-      .values({
-        eventId,
-        name: body.name,
-        description: body.description,
-        price: normalizedPrice,
-        quantityLimit: body.quantityLimit,
-        saleStart: body.saleStart ? new Date(body.saleStart) : null,
-        saleEnd: body.saleEnd ? new Date(body.saleEnd) : null,
-        isRefundable: body.isRefundable ?? false,
-        refundableUntil: body.refundableUntil
-          ? new Date(body.refundableUntil)
-          : null,
-        isTransferable: body.isTransferable ?? false,
-        maxTransfers: body.maxTransfers ?? 0,
-      })
-      .returning();
+    const newTicketTypeList = await db.transaction(async (tx) => {
+      const maxCountResult = await tx
+        .select({
+          maxCount: max(ticketTypes.sortOrder),
+        })
+        .from(ticketTypes)
+        .where(eq(ticketTypes.eventId, eventId));
+
+      const maxCount = maxCountResult[0]?.maxCount || 0;
+
+      return await tx
+        .insert(ticketTypes)
+        .values({
+          eventId,
+          name: body.name,
+          description: body.description,
+          price: normalizedPrice,
+          quantityLimit: body.quantityLimit,
+          saleStart: body.saleStart ? new Date(body.saleStart) : null,
+          saleEnd: body.saleEnd ? new Date(body.saleEnd) : null,
+          isRefundable: body.isRefundable ?? false,
+          refundableUntil: body.refundableUntil
+            ? new Date(body.refundableUntil)
+            : null,
+          isTransferable: body.isTransferable ?? false,
+          maxTransfers: body.maxTransfers ?? 0,
+          sortOrder: maxCount + 1,
+        })
+        .returning();
+    });
 
     const createdType = newTicketTypeList[0];
     if (!createdType) {
@@ -88,7 +100,8 @@ export const getTicketTypes = async (
     const ticketTypesList = await db
       .select()
       .from(ticketTypes)
-      .where(eq(ticketTypes.eventId, eventId));
+      .where(eq(ticketTypes.eventId, eventId))
+      .orderBy(asc(ticketTypes.sortOrder));
 
     return reply.send(ticketTypesList);
   } catch (error) {
@@ -190,6 +203,47 @@ export const deleteTicketType = async (
     }
 
     return reply.send({ message: "Ticket tier successfully deleted." });
+  } catch (error) {
+    if ((error as Error).message.includes("jwt")) {
+      return reply.status(401).send({ error: "Unauthorized" });
+    }
+    request.log.error(error);
+    return reply.status(500).send({ error: "Internal Server Error" });
+  }
+};
+
+export const reorderTicketTypes = async (
+  request: FastifyRequest<{
+    Params: { eventId: string };
+    Body: { id: string; sortOrder: number }[];
+  }>,
+  reply: FastifyReply,
+) => {
+  try {
+    await request.jwtVerify();
+    const user = request.user as { id: string };
+    const { eventId } = request.params;
+    const body = request.body;
+
+    const isOwner = await verifyEventOwner(eventId, user.id);
+    if (!isOwner) {
+      return reply
+        .status(401)
+        .send({ error: "Only the event creator can modify ticket tiers." });
+    }
+
+    await db.transaction(async (tx) => {
+      for (const item of body) {
+        await tx
+          .update(ticketTypes)
+          .set({ sortOrder: item.sortOrder })
+          .where(
+            and(eq(ticketTypes.id, item.id), eq(ticketTypes.eventId, eventId)),
+          );
+      }
+    });
+
+    return reply.send({ message: "Ticket types reordered successfully." });
   } catch (error) {
     if ((error as Error).message.includes("jwt")) {
       return reply.status(401).send({ error: "Unauthorized" });

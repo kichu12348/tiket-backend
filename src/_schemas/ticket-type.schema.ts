@@ -13,6 +13,7 @@ const ticketTypeObj = {
     refundableUntil: { type: ["string", "null"], format: "date-time" },
     isTransferable: { type: "boolean" },
     maxTransfers: { type: "integer" },
+    sortOrder: { type: "integer" },
     createdAt: { type: "string", format: "date-time" },
     updatedAt: { type: "string", format: "date-time" },
   },
@@ -125,6 +126,37 @@ export const deleteTicketTypeSchema = {
         type: "object",
         properties: { message: { type: "string" } },
       },
+      401: errorResponseSchema,
+      404: errorResponseSchema,
+      500: errorResponseSchema,
+    },
+  },
+};
+
+export const reorderTicketTypesSchema = {
+  schema: {
+    params: {
+      type: "object",
+      required: ["eventId"],
+      properties: { eventId: { type: "string" } },
+    },
+    body: {
+      type: "array",
+      items: {
+        type: "object",
+        required: ["id", "sortOrder"],
+        properties: {
+          id: { type: "string" },
+          sortOrder: { type: "integer" },
+        },
+      },
+    },
+    response: {
+      200: {
+        type: "object",
+        properties: { message: { type: "string" } },
+      },
+      400: errorResponseSchema,
       401: errorResponseSchema,
       404: errorResponseSchema,
       500: errorResponseSchema,
