@@ -83,9 +83,9 @@ export const addMemberSchema = {
     },
     body: {
       type: "object",
-      required: ["userId", "roleId"],
+      required: ["email", "roleId"],
       properties: {
-        userId: { type: "string" },
+        email: { type: "string", format: "email" },
         roleId: { type: "string" },
       },
     },
@@ -136,6 +136,73 @@ export const getMembersSchema = {
         },
       },
       401: errorResponseSchema,
+      500: errorResponseSchema,
+    },
+  },
+};
+
+export const updateRoleSchema = {
+  schema: {
+    params: {
+      type: "object",
+      required: ["eventId", "roleId"],
+      properties: { eventId: { type: "string" }, roleId: { type: "string" } },
+    },
+    body: {
+      type: "object",
+      properties: {
+        name: { type: "string", minLength: 2 },
+        permissions: {
+          type: "array",
+          items: { type: "string" },
+        },
+      },
+      minProperties: 1,
+    },
+    response: {
+      200: roleResponseObj,
+      400: errorResponseSchema,
+      401: errorResponseSchema,
+      404: errorResponseSchema,
+      500: errorResponseSchema,
+    },
+  },
+};
+
+export const deleteRoleSchema = {
+  schema: {
+    params: {
+      type: "object",
+      required: ["eventId", "roleId"],
+      properties: { eventId: { type: "string" }, roleId: { type: "string" } },
+    },
+    response: {
+      200: {
+        type: "object",
+        properties: { message: { type: "string" } },
+      },
+      400: errorResponseSchema,
+      401: errorResponseSchema,
+      404: errorResponseSchema,
+      500: errorResponseSchema,
+    },
+  },
+};
+
+export const removeMemberSchema = {
+  schema: {
+    params: {
+      type: "object",
+      required: ["eventId", "memberId"],
+      properties: { eventId: { type: "string" }, memberId: { type: "string" } },
+    },
+    response: {
+      200: {
+        type: "object",
+        properties: { message: { type: "string" } },
+      },
+      401: errorResponseSchema,
+      404: errorResponseSchema,
       500: errorResponseSchema,
     },
   },
