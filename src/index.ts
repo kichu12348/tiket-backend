@@ -15,6 +15,11 @@ const __dev__ = process.env.DEBUG! === "true";
 
 const fastify = Fastify({
   logger: __dev__,
+  ajv: {
+    customOptions: {
+      allowUnionTypes: true,
+    },
+  },
 });
 
 fastify.register(cors, {
