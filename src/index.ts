@@ -7,7 +7,7 @@ import teamRoutes from "@routes/team";
 import ticketTypeRoutes from "./routes/ticket-type.routes";
 import formRoutes from "./routes/form.routes";
 import orderRoutes from "./routes/order.routes";
-import transferRoutes from "./routes/transfer.routes";
+import ticketRoutes from "./routes/ticket.routes";
 import checkInRoutes from "./routes/check-in.routes";
 import templateRoutes from "./routes/template.routes";
 
@@ -41,7 +41,7 @@ fastify.register(teamRoutes, { prefix: "/api/teams" });
 fastify.register(ticketTypeRoutes, { prefix: "/api/ticket-types" });
 fastify.register(formRoutes, { prefix: "/api/forms" });
 fastify.register(orderRoutes, { prefix: "/api/orders" });
-fastify.register(transferRoutes, { prefix: "/api/tickets" });
+fastify.register(ticketRoutes, { prefix: "/api/tickets" });
 fastify.register(checkInRoutes, { prefix: "/api/check-ins" });
 fastify.register(templateRoutes, { prefix: "/api/templates" });
 
