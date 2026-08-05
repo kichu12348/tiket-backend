@@ -130,16 +130,6 @@ export const getAttendeeByIdSchema = {
         type: "object",
         properties: {
           attendee: attendeeItemSchema,
-          responses: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                label: { type: "string" },
-                value: { type: "string" },
-              },
-            },
-          },
           checkIns: {
             type: "array",
             items: {
@@ -154,6 +144,42 @@ export const getAttendeeByIdSchema = {
                     name: { type: "string" },
                   },
                 },
+              },
+            },
+          },
+        },
+      },
+      401: errorResponseSchema,
+      403: errorResponseSchema,
+      404: errorResponseSchema,
+      500: errorResponseSchema,
+    },
+  },
+};
+
+export const getAttendeeFormResponsesSchema = {
+  schema: {
+    params: {
+      type: "object",
+      required: ["eventId", "ticketId"],
+      properties: {
+        eventId: { type: "string" },
+        ticketId: { type: "string" },
+      },
+    },
+    response: {
+      200: {
+        type: "object",
+        properties: {
+          responses: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                fieldId: { type: "string" },
+                label: { type: "string" },
+                fieldType: { type: "string" },
+                value: { type: "string" },
               },
             },
           },

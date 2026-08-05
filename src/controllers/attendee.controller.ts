@@ -344,16 +344,6 @@ export const getAttendeeById = async (
 
     const row = rows[0];
 
-    // Fetch form responses
-    const formResRows = await db
-      .select({
-        label: formFields.label,
-        value: ticketFormResponses.responseValue,
-      })
-      .from(ticketFormResponses)
-      .innerJoin(formFields, eq(ticketFormResponses.fieldId, formFields.id))
-      .where(eq(ticketFormResponses.ticketId, ticketId));
-
     // Fetch check-in history
     const checkInLogs = await db
       .select({
@@ -390,10 +380,6 @@ export const getAttendeeById = async (
 
     return reply.status(200).send({
       attendee,
-      responses: formResRows.map((r) => ({
-        label: r.label,
-        value: r.value || "",
-      })),
       checkIns: checkInLogs.map((c) => ({
         id: c.id,
         checkedInAt: c.checkedInAt.toISOString(),
@@ -406,6 +392,53 @@ export const getAttendeeById = async (
     }
     request.log.error(error);
     return reply.status(500).send({ error: "Failed to fetch attendee detail." });
+  }
+};
+
+export const getAttendeeFormResponses = async (
+  request: FastifyRequest<{
+    Params: { eventId: string; ticketId: string };
+  }>,
+  reply: FastifyReply,
+) => {
+  try {
+    await request.jwtVerify();
+    const user = request.user as { id: string };
+    const { eventId, ticketId } = request.params;
+
+    const hasAccess = await verifyAccess(eventId, user.id);
+    if (!hasAccess) {
+      return reply
+        .status(403)
+        .send({ error: "You do not have permission to view form responses." });
+    }
+
+    const formResRows = await db
+      .select({
+        fieldId: formFields.id,
+        label: formFields.label,
+        fieldType: formFields.fieldType,
+        value: ticketFormResponses.responseValue,
+      })
+      .from(ticketFormResponses)
+      .innerJoin(formFields, eq(ticketFormResponses.fieldId, formFields.id))
+      .where(eq(ticketFormResponses.ticketId, ticketId))
+      .orderBy(formFields.sortOrder);
+
+    return reply.status(200).send({
+      responses: formResRows.map((r) => ({
+        fieldId: r.fieldId,
+        label: r.label,
+        fieldType: r.fieldType,
+        value: r.value || "",
+      })),
+    });
+  } catch (error) {
+    if ((error as Error).message?.includes("jwt")) {
+      return reply.status(401).send({ error: "Unauthorized" });
+    }
+    request.log.error(error);
+    return reply.status(500).send({ error: "Failed to fetch form responses." });
   }
 };
 
