@@ -92,6 +92,8 @@ export const getTicketPassSchema = {
     },
     response: {
       200: ticketPassResponseSchema,
+      401: errorResponseSchema,
+      403: errorResponseSchema,
       404: errorResponseSchema,
       500: errorResponseSchema,
     },

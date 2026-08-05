@@ -197,19 +197,39 @@ export const getEventBySlug = async (
       return reply.status(404).send({ error: "Event not found" });
     }
 
-    if (event.status !== "published") {
-      try {
-        await request.jwtVerify();
-        const user = request.user as { id: string };
-        if (event.organizationId !== user.id) {
-          return reply.status(404).send({ error: "Event not found" });
+    let isAssociated = false;
+
+    try {
+      await request.jwtVerify();
+      const user = request.user as { id: string };
+      if (user && user.id) {
+        if (event.organizationId === user.id) {
+          isAssociated = true;
+        } else {
+          const teamCheck = await db
+            .select({ id: eventTeamMembers.id })
+            .from(eventTeamMembers)
+            .where(
+              and(
+                eq(eventTeamMembers.eventId, event.id),
+                eq(eventTeamMembers.userId, user.id),
+              ),
+            );
+          isAssociated = teamCheck.length > 0;
         }
-      } catch (err) {
-        return reply.status(404).send({ error: "Event not found" });
       }
+    } catch (err) {
+      // Unauthenticated
     }
 
-    return reply.send(event);
+    if (event.status !== "published" && !isAssociated) {
+      return reply.status(404).send({ error: "Event not found" });
+    }
+
+    return reply.send({
+      ...event,
+      isAssociated,
+    });
   } catch (error) {
     request.log.error(error);
     return reply.status(500).send({ error: "Internal Server Error" });

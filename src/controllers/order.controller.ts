@@ -1,6 +1,13 @@
 import type { FastifyRequest, FastifyReply } from "fastify";
 import db from "@db";
-import { events, orders, tickets, ticketTypes, ticketFormResponses } from "@db/schema";
+import {
+  events,
+  orders,
+  tickets,
+  ticketTypes,
+  ticketFormResponses,
+  eventTeamMembers,
+} from "@db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import crypto from "crypto";
 
@@ -30,23 +37,62 @@ export const createOrder = async (
       return reply.status(400).send({ error: "No tickets requested." });
     }
 
+    // 1. Verify Event Existence & Check Host Guard
+    const eventList = await db
+      .select({ id: events.id, organizationId: events.organizationId })
+      .from(events)
+      .where(eq(events.id, eventId));
+
+    const checkEvent = eventList[0];
+    if (!checkEvent) {
+      return reply.status(404).send({ error: "Event not found." });
+    }
+
+    if (checkEvent.organizationId === user.id) {
+      return reply
+        .status(403)
+        .send({ error: "As an event host, you cannot register for your own event." });
+    }
+
+    // 2. Check Team Member / Event Handler Guard
+    const teamCheck = await db
+      .select({ id: eventTeamMembers.id })
+      .from(eventTeamMembers)
+      .where(
+        and(
+          eq(eventTeamMembers.eventId, eventId),
+          eq(eventTeamMembers.userId, user.id)
+        )
+      );
+
+    if (teamCheck.length > 0) {
+      return reply
+        .status(403)
+        .send({ error: "As an event team member, you cannot register for this event." });
+    }
+
     const typeQuantities: Record<string, number> = {};
     for (const p of purchases) {
       typeQuantities[p.ticketTypeId] = (typeQuantities[p.ticketTypeId] || 0) + 1;
     }
     const requestedTypes = Object.keys(typeQuantities);
 
-    // Initialize Atomic Block Mapping
+    // 3. Initialize Atomic Block Transaction
     return await db.transaction(async (tx) => {
       let totalAmount = 0;
 
       for (const tTypeId of requestedTypes) {
-        const tierList = await tx.select().from(ticketTypes).where(eq(ticketTypes.id, tTypeId));
+        const tierList = await tx
+          .select()
+          .from(ticketTypes)
+          .where(eq(ticketTypes.id, tTypeId));
         const tier = tierList[0];
 
         if (!tier) {
           tx.rollback();
-          return reply.status(404).send({ error: `Ticket tier mapped to ID ${tTypeId} not found.` });
+          return reply
+            .status(404)
+            .send({ error: `Ticket tier mapped to ID ${tTypeId} not found.` });
         }
 
         if (tier.eventId !== eventId) {
@@ -55,20 +101,28 @@ export const createOrder = async (
         }
 
         const requestedAmount = typeQuantities[tTypeId] || 0;
-        
-        // Execution limiting bound structure check
+
         if (tier.quantityLimit !== null) {
           const soldQuery = await tx
-            .select({ count: sql<string>`count(*)` }) 
+            .select({ count: sql<string>`count(*)` })
             .from(tickets)
-            .where(and(eq(tickets.ticketTypeId, tTypeId), eq(tickets.status, "active")));
-            
+            .where(
+              and(
+                eq(tickets.ticketTypeId, tTypeId),
+                eq(tickets.status, "active")
+              )
+            );
+
           const soldCountObj = soldQuery[0];
           const sold = soldCountObj ? Number(soldCountObj.count) : 0;
 
           if (sold + requestedAmount > tier.quantityLimit) {
             tx.rollback();
-            return reply.status(409).send({ error: `Insufficient ticket inventory for ${tier.name}. Only ${tier.quantityLimit - sold} remaining.` });
+            return reply.status(409).send({
+              error: `Insufficient ticket inventory for ${tier.name}. Only ${
+                tier.quantityLimit - sold
+              } remaining.`,
+            });
           }
         }
 
@@ -76,59 +130,68 @@ export const createOrder = async (
       }
 
       // Root Checkout Map
-      const newOrderList = await tx.insert(orders).values({
-        eventId,
-        userId: user.id,
-        totalAmount: totalAmount.toFixed(2),
-        paymentStatus: "pending",
-        paymentProvider: "mock_stripe",
-      }).returning();
+      const newOrderList = await tx
+        .insert(orders)
+        .values({
+          eventId,
+          userId: user.id,
+          totalAmount: totalAmount.toFixed(2),
+          paymentStatus: "pending",
+          paymentProvider: "mock_stripe",
+        })
+        .returning();
 
       const order = newOrderList[0];
       if (!order) {
-          tx.rollback();
-          return reply.status(500).send({ error: "Failed to allocate order root block." });
+        tx.rollback();
+        return reply
+          .status(500)
+          .send({ error: "Failed to allocate order root block." });
       }
 
       const createdTickets = [];
 
       for (const p of purchases) {
-          // Securing standard hash mechanism binding the ticket mapping identically
-          const uniqueQr = `${order.id}-${crypto.randomUUID()}`;
+        const uniqueQr = `${order.id}-${crypto.randomUUID()}`;
 
-          const ticketList = await tx.insert(tickets).values({
-             orderId: order.id,
-             ticketTypeId: p.ticketTypeId,
-             userId: user.id,
-             eventId: eventId,
-             qrCode: uniqueQr,
-             status: "active",
-          }).returning();
+        const ticketList = await tx
+          .insert(tickets)
+          .values({
+            orderId: order.id,
+            ticketTypeId: p.ticketTypeId,
+            userId: user.id,
+            eventId: eventId,
+            qrCode: uniqueQr,
+            status: "active",
+          })
+          .returning();
 
-          const ticket = ticketList[0];
-          if (!ticket) continue;
+        const ticket = ticketList[0];
+        if (!ticket) continue;
 
-          createdTickets.push(ticket);
+        createdTickets.push(ticket);
 
-          if (p.formResponses && p.formResponses.length > 0) {
-              const formattedResponses = p.formResponses.map((r) => ({
-                 ticketId: ticket.id,
-                 fieldId: r.fieldId,
-                 responseValue: r.responseValue
-              }));
+        if (p.formResponses && p.formResponses.length > 0) {
+          const formattedResponses = p.formResponses.map((r) => ({
+            ticketId: ticket.id,
+            fieldId: r.fieldId,
+            responseValue: r.responseValue,
+          }));
 
-              await tx.insert(ticketFormResponses).values(formattedResponses);
-          }
+          await tx.insert(ticketFormResponses).values(formattedResponses);
+        }
       }
 
       return reply.status(201).send({
         order,
-        tickets: createdTickets
+        tickets: createdTickets,
       });
     });
-
   } catch (error) {
-    if ((error as Error).message.includes("jwt")) {
+    if (
+      (error as Error).message?.includes("jwt") ||
+      (error as Error).message?.includes("Authorization")
+    ) {
       return reply.status(401).send({ error: "Unauthorized" });
     }
     request.log.error(error);
@@ -140,27 +203,35 @@ export const payOrderMock = async (
   request: FastifyRequest<{ Params: { orderId: string } }>,
   reply: FastifyReply
 ) => {
-    try {
-        await request.jwtVerify();
-        const user = request.user as { id: string };
-        const { orderId } = request.params;
+  try {
+    await request.jwtVerify();
+    const user = request.user as { id: string };
+    const { orderId } = request.params;
 
-        const updated = await db.update(orders)
-            .set({ paymentStatus: "success" })
-            .where(and(eq(orders.id, orderId), eq(orders.userId, user.id)))
-            .returning();
-            
-        if(updated.length === 0){
-             return reply.status(404).send({ error: "Order not found or you don't have access." });
-        }
+    const updated = await db
+      .update(orders)
+      .set({ paymentStatus: "success" })
+      .where(and(eq(orders.id, orderId), eq(orders.userId, user.id)))
+      .returning();
 
-        return reply.send({ message: "Mock transaction validated and secured.", order: updated[0] });
-
-    } catch (error) {
-         if ((error as Error).message.includes("jwt")) {
-            return reply.status(401).send({ error: "Unauthorized" });
-        }
-        request.log.error(error);
-        return reply.status(500).send({ error: "Internal Server Error" });
+    if (updated.length === 0) {
+      return reply
+        .status(404)
+        .send({ error: "Order not found or you don't have access." });
     }
-}
+
+    return reply.send({
+      message: "Mock transaction validated and secured.",
+      order: updated[0],
+    });
+  } catch (error) {
+    if (
+      (error as Error).message?.includes("jwt") ||
+      (error as Error).message?.includes("Authorization")
+    ) {
+      return reply.status(401).send({ error: "Unauthorized" });
+    }
+    request.log.error(error);
+    return reply.status(500).send({ error: "Internal Server Error" });
+  }
+};

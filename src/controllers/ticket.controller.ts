@@ -8,16 +8,21 @@ import {
   orders,
   ticketFormResponses,
   formFields,
+  eventTeamMembers,
 } from "@db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 
 export const getTicketPass = async (
   request: FastifyRequest<{ Params: { ticketId: string } }>,
   reply: FastifyReply,
 ) => {
   try {
+    // 1. Authenticate user via JWT
+    await request.jwtVerify();
+    const user = request.user as { id: string; email: string };
     const { ticketId } = request.params;
 
+    // 2. Fetch ticket details along with event, ticket type, attendee, and order info
     const result = await db
       .select({
         ticket: tickets,
@@ -48,7 +53,32 @@ export const getTicketPass = async (
 
     const row = result[0];
 
-    // Fetch optional form responses
+    // 3. Authorization Guard:
+    // User must be the ticket owner (attendee), event organizer, or an event team member.
+    const isTicketOwner = row.ticket.userId === user.id;
+    const isEventOrganizer = row.event.organizationId === user.id;
+
+    let isTeamMember = false;
+    if (!isTicketOwner && !isEventOrganizer) {
+      const teamCheck = await db
+        .select()
+        .from(eventTeamMembers)
+        .where(
+          and(
+            eq(eventTeamMembers.eventId, row.event.id),
+            eq(eventTeamMembers.userId, user.id),
+          ),
+        );
+      isTeamMember = teamCheck.length > 0;
+    }
+
+    if (!isTicketOwner && !isEventOrganizer && !isTeamMember) {
+      return reply
+        .status(403)
+        .send({ error: "You do not have permission to view this ticket." });
+    }
+
+    // 4. Fetch optional registration form responses
     const responses = await db
       .select({
         label: formFields.label,
@@ -101,6 +131,12 @@ export const getTicketPass = async (
 
     return reply.status(200).send(responsePayload);
   } catch (error) {
+    if (
+      (error as Error).message?.includes("jwt") ||
+      (error as Error).message.includes("Authorization")
+    ) {
+      return reply.status(401).send({ error: "Unauthorized" });
+    }
     request.log.error(error);
     return reply.status(500).send({ error: "Failed to fetch ticket pass." });
   }
