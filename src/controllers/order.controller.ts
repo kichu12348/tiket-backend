@@ -10,6 +10,7 @@ import {
 } from "@db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import crypto from "crypto";
+import { initiatePaymentForOrder } from "@services/payment";
 
 interface PurchaseItem {
   ticketTypeId: string;
@@ -22,6 +23,14 @@ interface PurchaseItem {
 interface CreateOrderBody {
   eventId: string;
   purchases: PurchaseItem[];
+}
+
+class OrderValidationError extends Error {
+  statusCode: number;
+  constructor(message: string, statusCode = 400) {
+    super(message);
+    this.statusCode = statusCode;
+  }
 }
 
 export const createOrder = async (
@@ -77,8 +86,8 @@ export const createOrder = async (
     }
     const requestedTypes = Object.keys(typeQuantities);
 
-    // 3. Initialize Atomic Block Transaction
-    return await db.transaction(async (tx) => {
+    // 3. Execute DB Transaction
+    const transactionResult = await db.transaction(async (tx) => {
       let totalAmount = 0;
 
       for (const tTypeId of requestedTypes) {
@@ -90,14 +99,12 @@ export const createOrder = async (
 
         if (!tier) {
           tx.rollback();
-          return reply
-            .status(404)
-            .send({ error: `Ticket tier mapped to ID ${tTypeId} not found.` });
+          throw new OrderValidationError(`Ticket tier mapped to ID ${tTypeId} not found.`, 404);
         }
 
         if (tier.eventId !== eventId) {
           tx.rollback();
-          return reply.status(400).send({ error: `Mismatching Tier bounds.` });
+          throw new OrderValidationError("Mismatching Tier bounds.", 400);
         }
 
         const requestedAmount = typeQuantities[tTypeId] || 0;
@@ -118,35 +125,35 @@ export const createOrder = async (
 
           if (sold + requestedAmount > tier.quantityLimit) {
             tx.rollback();
-            return reply.status(409).send({
-              error: `Insufficient ticket inventory for ${tier.name}. Only ${
+            throw new OrderValidationError(
+              `Insufficient ticket inventory for ${tier.name}. Only ${
                 tier.quantityLimit - sold
               } remaining.`,
-            });
+              409
+            );
           }
         }
 
         totalAmount += parseFloat(tier.price) * requestedAmount;
       }
 
-      // Root Checkout Map
+      const isFreeOrder = totalAmount === 0;
+
       const newOrderList = await tx
         .insert(orders)
         .values({
           eventId,
           userId: user.id,
           totalAmount: totalAmount.toFixed(2),
-          paymentStatus: "pending",
-          paymentProvider: "mock_stripe",
+          paymentStatus: isFreeOrder ? "success" : "pending",
+          paymentProvider: isFreeOrder ? "free" : "razorpay",
         })
         .returning();
 
       const order = newOrderList[0];
       if (!order) {
         tx.rollback();
-        return reply
-          .status(500)
-          .send({ error: "Failed to allocate order root block." });
+        throw new OrderValidationError("Failed to allocate order root block.", 500);
       }
 
       const createdTickets = [];
@@ -182,12 +189,27 @@ export const createOrder = async (
         }
       }
 
-      return reply.status(201).send({
-        order,
-        tickets: createdTickets,
-      });
+      return { order, tickets: createdTickets, totalAmount };
+    });
+
+    const { order, tickets: createdTickets, totalAmount } = transactionResult;
+
+    // 4. Handle Razorpay Order Creation outside DB transaction
+    let razorpayOrder = null;
+    if (totalAmount > 0) {
+      const paymentRes = await initiatePaymentForOrder(order.id, totalAmount);
+      razorpayOrder = paymentRes.razorpayOrder;
+    }
+
+    return reply.status(201).send({
+      order,
+      tickets: createdTickets,
+      razorpayOrder,
     });
   } catch (error) {
+    if (error instanceof OrderValidationError) {
+      return reply.status(error.statusCode).send({ error: error.message });
+    }
     if (
       (error as Error).message?.includes("jwt") ||
       (error as Error).message?.includes("Authorization")
@@ -195,7 +217,7 @@ export const createOrder = async (
       return reply.status(401).send({ error: "Unauthorized" });
     }
     request.log.error(error);
-    return reply.status(500).send({ error: "Internal Server Error" });
+    return reply.status(500).send({ error: (error as Error).message || "Internal Server Error" });
   }
 };
 

@@ -22,10 +22,21 @@ const orderResponseObj = {
   },
 };
 
+const razorpayOrderObj = {
+  type: "object",
+  nullable: true,
+  properties: {
+    id: { type: "string" },
+    amount: { type: "number" },
+    currency: { type: "string" },
+    keyId: { type: "string" },
+  },
+};
+
 const errorResponseSchema = {
-    type: "object",
-    properties: { error: { type: "string" } }
-}
+  type: "object",
+  properties: { error: { type: "string" } },
+};
 
 export const createOrderSchema = {
   schema: {
@@ -64,9 +75,10 @@ export const createOrderSchema = {
           order: orderResponseObj,
           tickets: {
             type: "array",
-            items: ticketResponseObj
-          }
-        }
+            items: ticketResponseObj,
+          },
+          razorpayOrder: razorpayOrderObj,
+        },
       },
       400: errorResponseSchema,
       404: errorResponseSchema,
@@ -77,23 +89,23 @@ export const createOrderSchema = {
 };
 
 export const payOrderSchema = {
-    schema: {
-        params: {
-            type: "object",
-            required: ["orderId"],
-            properties: { orderId: { type: "string" } },
+  schema: {
+    params: {
+      type: "object",
+      required: ["orderId"],
+      properties: { orderId: { type: "string" } },
+    },
+    response: {
+      200: {
+        type: "object",
+        properties: {
+          message: { type: "string" },
+          order: orderResponseObj,
         },
-        response: {
-            200: {
-                type: "object",
-                properties: {
-                    message: { type: "string" },
-                    order: orderResponseObj
-                }
-            },
-            401: errorResponseSchema,
-            404: errorResponseSchema,
-            500: errorResponseSchema,
-        }
-    }
-}
+      },
+      401: errorResponseSchema,
+      404: errorResponseSchema,
+      500: errorResponseSchema,
+    },
+  },
+};

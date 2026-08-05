@@ -30,6 +30,7 @@
     "@fastify/jwt": "^10.2.0",
     "@phonepe-pg/pg-sdk-node": "^2.0.6",
     "drizzle-orm": "^0.45.2",
-    "fastify": "^5.10.0"
+    "fastify": "^5.10.0",
+    "razorpay": "^2.9.8"
   }
 }

@@ -10,6 +10,8 @@ import orderRoutes from "./routes/order.routes";
 import ticketRoutes from "./routes/ticket.routes";
 import checkInRoutes from "./routes/check-in.routes";
 import templateRoutes from "./routes/template.routes";
+import paymentRoutes from "./routes/payment.routes";
+import attendeeRoutes from "./routes/attendee.routes";
 
 const __dev__ = process.env.DEBUG! === "true";
 
@@ -44,6 +46,8 @@ fastify.register(orderRoutes, { prefix: "/api/orders" });
 fastify.register(ticketRoutes, { prefix: "/api/tickets" });
 fastify.register(checkInRoutes, { prefix: "/api/check-ins" });
 fastify.register(templateRoutes, { prefix: "/api/templates" });
+fastify.register(paymentRoutes, { prefix: "/api/payments" });
+fastify.register(attendeeRoutes, { prefix: "/api/attendees" });
 
 const start = async () => {
   try {

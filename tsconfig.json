@@ -33,7 +33,8 @@
       "@routes/*": ["./src/routes/*.routes.ts"],
       "@controllers/*": ["./src/controllers/*.controller.ts"],
       "@schemas/*": ["./src/_schemas/*.schema.ts"],
-      "@utils": ["./src/utils/index.ts"]
+      "@utils": ["./src/utils/index.ts"],
+      "@services/*": ["./src/services/*.service.ts"]
     }
   }
 }
