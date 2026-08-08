@@ -1,7 +1,8 @@
 import type { FastifyRequest, FastifyReply } from "fastify";
 import db from "@db";
-import { checkIns, tickets, events, eventTeamMembers } from "@db/schema";
+import { checkIns, tickets, events, eventTeamMembers, emailTemplates, users } from "@db/schema";
 import { eq, and } from "drizzle-orm";
+import { sendEmail } from "../utils/emailService";
 
 interface ScanTicketBody {
   qrCode: string;
@@ -109,6 +110,56 @@ export const scanTicket = async (
         .returning();
 
       const updatedTicket = updatedTicketList[0];
+
+      // Async email trigger (non-blocking)
+      (async () => {
+        try {
+          const [tpl] = await db
+            .select()
+            .from(emailTemplates)
+            .where(
+              and(
+                eq(emailTemplates.eventId, targetEventId),
+                eq(emailTemplates.type, "checkin"),
+                eq(emailTemplates.isActive, true),
+              ),
+            );
+
+          if (tpl) {
+            const [attendeeUser] = await db
+              .select()
+              .from(users)
+              .where(eq(users.id, ticket.userId));
+
+            if (attendeeUser) {
+              await sendEmail({
+                eventId: targetEventId,
+                templateId: tpl.id,
+                recipientEmail: attendeeUser.email,
+                recipientName: attendeeUser.name,
+                subject: tpl.subject,
+                body: tpl.body,
+                data: {
+                  event: {
+                    title: eventObj.title,
+                    startDate: eventObj.startDate ? new Date(eventObj.startDate).toLocaleString() : "",
+                    location: eventObj.locationType === "online" ? "Online Stream" : "Venue",
+                  },
+                  attendee: {
+                    name: attendeeUser.name,
+                    email: attendeeUser.email,
+                  },
+                  ticket: {
+                    qrCode: ticket.qrCode,
+                  },
+                },
+              });
+            }
+          }
+        } catch (e) {
+          console.error("Checkin email trigger error:", e);
+        }
+      })();
 
       return reply.status(201).send({
         message:

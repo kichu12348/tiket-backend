@@ -12,6 +12,7 @@ import checkInRoutes from "./routes/check-in.routes";
 import templateRoutes from "./routes/template.routes";
 import paymentRoutes from "./routes/payment.routes";
 import attendeeRoutes from "./routes/attendee.routes";
+import emailRoutes from "./routes/email.routes";
 
 const __dev__ = process.env.DEBUG! === "true";
 
@@ -48,6 +49,7 @@ fastify.register(checkInRoutes, { prefix: "/api/check-ins" });
 fastify.register(templateRoutes, { prefix: "/api/templates" });
 fastify.register(paymentRoutes, { prefix: "/api/payments" });
 fastify.register(attendeeRoutes, { prefix: "/api/attendees" });
+fastify.register(emailRoutes, { prefix: "/api/emails" });
 
 const start = async () => {
   try {

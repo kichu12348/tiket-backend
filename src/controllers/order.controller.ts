@@ -7,10 +7,13 @@ import {
   ticketTypes,
   ticketFormResponses,
   eventTeamMembers,
+  users,
+  emailTemplates,
 } from "@db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import crypto from "crypto";
 import { initiatePaymentForOrder } from "@services/payment";
+import { sendEmail } from "../utils/emailService";
 
 interface PurchaseItem {
   ticketTypeId: string;
@@ -35,7 +38,7 @@ class OrderValidationError extends Error {
 
 export const createOrder = async (
   request: FastifyRequest<{ Body: CreateOrderBody }>,
-  reply: FastifyReply
+  reply: FastifyReply,
 ) => {
   try {
     await request.jwtVerify();
@@ -60,7 +63,9 @@ export const createOrder = async (
     if (checkEvent.organizationId === user.id) {
       return reply
         .status(403)
-        .send({ error: "As an event host, you cannot register for your own event." });
+        .send({
+          error: "As an event host, you cannot register for your own event.",
+        });
     }
 
     // 2. Check Team Member / Event Handler Guard
@@ -70,19 +75,22 @@ export const createOrder = async (
       .where(
         and(
           eq(eventTeamMembers.eventId, eventId),
-          eq(eventTeamMembers.userId, user.id)
-        )
+          eq(eventTeamMembers.userId, user.id),
+        ),
       );
 
     if (teamCheck.length > 0) {
       return reply
         .status(403)
-        .send({ error: "As an event team member, you cannot register for this event." });
+        .send({
+          error: "As an event team member, you cannot register for this event.",
+        });
     }
 
     const typeQuantities: Record<string, number> = {};
     for (const p of purchases) {
-      typeQuantities[p.ticketTypeId] = (typeQuantities[p.ticketTypeId] || 0) + 1;
+      typeQuantities[p.ticketTypeId] =
+        (typeQuantities[p.ticketTypeId] || 0) + 1;
     }
     const requestedTypes = Object.keys(typeQuantities);
 
@@ -99,7 +107,10 @@ export const createOrder = async (
 
         if (!tier) {
           tx.rollback();
-          throw new OrderValidationError(`Ticket tier mapped to ID ${tTypeId} not found.`, 404);
+          throw new OrderValidationError(
+            `Ticket tier mapped to ID ${tTypeId} not found.`,
+            404,
+          );
         }
 
         if (tier.eventId !== eventId) {
@@ -116,8 +127,8 @@ export const createOrder = async (
             .where(
               and(
                 eq(tickets.ticketTypeId, tTypeId),
-                eq(tickets.status, "active")
-              )
+                eq(tickets.status, "active"),
+              ),
             );
 
           const soldCountObj = soldQuery[0];
@@ -129,7 +140,7 @@ export const createOrder = async (
               `Insufficient ticket inventory for ${tier.name}. Only ${
                 tier.quantityLimit - sold
               } remaining.`,
-              409
+              409,
             );
           }
         }
@@ -153,7 +164,10 @@ export const createOrder = async (
       const order = newOrderList[0];
       if (!order) {
         tx.rollback();
-        throw new OrderValidationError("Failed to allocate order root block.", 500);
+        throw new OrderValidationError(
+          "Failed to allocate order root block.",
+          500,
+        );
       }
 
       const createdTickets = [];
@@ -194,6 +208,74 @@ export const createOrder = async (
 
     const { order, tickets: createdTickets, totalAmount } = transactionResult;
 
+    // Async email trigger for confirmation if order is free/success
+    if (totalAmount === 0 && createdTickets.length > 0) {
+      (async () => {
+        try {
+          const [tpl] = await db
+            .select()
+            .from(emailTemplates)
+            .where(
+              and(
+                eq(emailTemplates.eventId, eventId),
+                eq(emailTemplates.type, "confirmation"),
+                eq(emailTemplates.isActive, true),
+              ),
+            );
+
+          if (tpl) {
+            const [userRecord] = await db
+              .select()
+              .from(users)
+              .where(eq(users.id, user.id));
+
+            const [eventObj] = await db
+              .select()
+              .from(events)
+              .where(eq(events.id, eventId));
+
+            if (userRecord && eventObj) {
+              const firstTicket = createdTickets[0];
+
+              if (firstTicket) {
+                await sendEmail({
+                  eventId,
+                  templateId: tpl.id,
+                  recipientEmail: userRecord.email,
+                  recipientName: userRecord.name,
+                  subject: tpl.subject,
+                  body: tpl.body,
+                  data: {
+                    event: {
+                      title: eventObj.title,
+                      startDate: eventObj.startDate
+                        ? new Date(eventObj.startDate).toLocaleString()
+                        : "",
+                      location:
+                        eventObj.locationType === "online"
+                          ? "Online Stream"
+                          : "Venue",
+                      url: `http://localhost:3000/${eventObj.slug}`,
+                      passUrl: `http://localhost:3000/passes/${firstTicket.id}`,
+                    },
+                    attendee: {
+                      name: userRecord.name,
+                      email: userRecord.email,
+                    },
+                    ticket: {
+                      qrCode: firstTicket.qrCode,
+                    },
+                  },
+                });
+              }
+            }
+          }
+        } catch (e) {
+          console.error("Order confirmation email trigger error:", e);
+        }
+      })();
+    }
+
     // 4. Handle Razorpay Order Creation outside DB transaction
     let razorpayOrder = null;
     if (totalAmount > 0) {
@@ -217,13 +299,15 @@ export const createOrder = async (
       return reply.status(401).send({ error: "Unauthorized" });
     }
     request.log.error(error);
-    return reply.status(500).send({ error: (error as Error).message || "Internal Server Error" });
+    return reply
+      .status(500)
+      .send({ error: (error as Error).message || "Internal Server Error" });
   }
 };
 
 export const payOrderMock = async (
   request: FastifyRequest<{ Params: { orderId: string } }>,
-  reply: FastifyReply
+  reply: FastifyReply,
 ) => {
   try {
     await request.jwtVerify();

@@ -84,6 +84,19 @@ export const workflowActionEnum = pgEnum("workflow_action", [
   "send_email",
   "generate_certificate",
 ]);
+export const emailTemplateTypeEnum = pgEnum("email_template_type", [
+  "invitation",
+  "confirmation",
+  "checkin",
+  "thank_you",
+  "sorry",
+  "custom",
+]);
+export const emailDeliveryStatusEnum = pgEnum("email_delivery_status", [
+  "sent",
+  "failed",
+  "queued",
+]);
 
 // ==========================================
 // 🔐 AUTH SYSTEM
@@ -365,6 +378,41 @@ export const workflows = pgTable("workflows", {
 });
 
 // ==========================================
+// 📧 EMAIL ENGINE (TEMPLATES & LOGS)
+// ==========================================
+
+export const emailTemplates = pgTable("email_templates", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  eventId: uuid("event_id")
+    .references(() => events.id, { onDelete: "cascade" })
+    .notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  type: emailTemplateTypeEnum("type").notNull().default("custom"),
+  subject: text("subject").notNull(),
+  body: text("body").notNull(),
+  bodyJson: jsonb("body_json"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const emailLogs = pgTable("email_logs", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  eventId: uuid("event_id")
+    .references(() => events.id, { onDelete: "cascade" })
+    .notNull(),
+  templateId: uuid("template_id").references(() => emailTemplates.id, {
+    onDelete: "set null",
+  }),
+  recipientEmail: varchar("recipient_email", { length: 255 }).notNull(),
+  recipientName: varchar("recipient_name", { length: 255 }),
+  subject: text("subject").notNull(),
+  status: emailDeliveryStatusEnum("status").notNull().default("sent"),
+  errorMessage: text("error_message"),
+  sentAt: timestamp("sent_at").defaultNow().notNull(),
+});
+
+// ==========================================
 // 🔗 RELATIONS
 // ==========================================
 
@@ -389,6 +437,8 @@ export const eventsRelations = relations(events, ({ one, many }) => ({
   documentTemplates: many(documentTemplates),
   checkIns: many(checkIns),
   workflows: many(workflows),
+  emailTemplates: many(emailTemplates),
+  emailLogs: many(emailLogs),
 }));
 
 export const eventRolesRelations = relations(eventRoles, ({ one, many }) => ({
@@ -527,4 +577,26 @@ export const checkInsRelations = relations(checkIns, ({ one }) => ({
 
 export const workflowsRelations = relations(workflows, ({ one }) => ({
   event: one(events, { fields: [workflows.eventId], references: [events.id] }),
+}));
+
+export const emailTemplatesRelations = relations(
+  emailTemplates,
+  ({ one, many }) => ({
+    event: one(events, {
+      fields: [emailTemplates.eventId],
+      references: [events.id],
+    }),
+    logs: many(emailLogs),
+  }),
+);
+
+export const emailLogsRelations = relations(emailLogs, ({ one }) => ({
+  event: one(events, {
+    fields: [emailLogs.eventId],
+    references: [events.id],
+  }),
+  template: one(emailTemplates, {
+    fields: [emailLogs.templateId],
+    references: [emailTemplates.id],
+  }),
 }));
